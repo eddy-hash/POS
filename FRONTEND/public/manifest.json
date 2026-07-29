@@ -1,0 +1,13 @@
+{
+  "name": "Tally POS - Smart Point of Sale",
+  "short_name": "Tally POS",
+  "description": "Track your expenses, manage transactions smarter",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563EB",
+  "orientation": "portrait-primary",
+  "icons": [
+    {"src": "/icons/icon-192.png","sizes": "192x192","type": "image/png","purpose": "any maskable"}
+  ]
+}
