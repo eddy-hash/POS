@@ -4,7 +4,9 @@ import { Repository } from 'typeorm';
 import { Sale } from '../sales/entities/sale.entity';
 import { Expense } from '../expenses/entities/expense.entity';
 import { Product } from '../products/entities/product.entity';
-import { User } from '../users/entities/user.entity';
+import { Customer } from '../customers/entities/customer.entity';
+import { PurchaseOrder } from '../purchases/entities/purchase-order.entity';
+import { CurrencyService } from '../common/services/currency.service';
 
 @Injectable()
 export class DashboardService {
@@ -17,160 +19,161 @@ export class DashboardService {
     private expenseRepository: Repository<Expense>,
     @InjectRepository(Product)
     private productRepository: Repository<Product>,
-    @InjectRepository(User)
-    private userRepository: Repository<User>,
+    @InjectRepository(Customer)
+    private customerRepository: Repository<Customer>,
+    @InjectRepository(PurchaseOrder)
+    private purchaseRepository: Repository<PurchaseOrder>,
+    private currencyService: CurrencyService,
   ) {}
 
-  async getStats(userId: number) {
-    this.logger.log(`Fetching dashboard stats for user ${userId}`);
+  async getStats(userId: number, displayCurrency: string = 'TZS') {
+    this.logger.log(`Fetching dashboard stats for user ${userId} in ${displayCurrency}`);
 
-    try {
-      // Get total sales count
-      const totalSales = await this.saleRepository.count({ 
-        where: { userId } 
-      });
-      this.logger.log(`Total sales: ${totalSales}`);
+    const sales = await this.saleRepository.find({
+      where: { userId },
+      order: { saleDate: 'DESC' },
+    });
 
-      // Get total revenue
-      const revenueResult = await this.saleRepository
-        .createQueryBuilder('sale')
-        .where('sale.userId = :userId', { userId })
-        .select('COALESCE(SUM(sale.netAmount), 0)', 'total')
-        .getRawOne();
-      const totalRevenue = Number(revenueResult?.total) || 0;
-      this.logger.log(`Total revenue: ${totalRevenue}`);
+    const totalSales = sales.length;
+    const totalRevenue = sales.reduce((sum, s) => sum + Number(s.netAmount || 0), 0);
+    const totalExpenses = await this.getTotalExpenses(userId);
+    const totalCustomers = await this.customerRepository.count({ where: { userId } });
+    const totalProducts = await this.productRepository.count({ where: { isActive: true } });
+    const totalPurchases = await this.purchaseRepository.count({ where: { userId } });
 
-      // Get total expenses
-      const expenseResult = await this.expenseRepository
-        .createQueryBuilder('expense')
-        .where('expense.userId = :userId', { userId })
-        .select('COALESCE(SUM(expense.amount), 0)', 'total')
-        .getRawOne();
-      const totalExpenses = Number(expenseResult?.total) || 0;
-      this.logger.log(`Total expenses: ${totalExpenses}`);
+    const salesTrend = await this.getSalesTrend(userId);
+    const expenseTrend = await this.getExpenseTrend(userId);
+    const topProducts = await this.getTopProducts(userId);
 
-      // Get total customers
-      const totalCustomers = await this.userRepository.count();
-      this.logger.log(`Total customers: ${totalCustomers}`);
+    const profit = totalRevenue - totalExpenses;
 
-      // Get total products
-      const totalProducts = await this.productRepository.count();
-      this.logger.log(`Total products: ${totalProducts}`);
+    const convertedRevenue = this.currencyService.convert(totalRevenue, 'TZS', displayCurrency);
+    const convertedExpenses = this.currencyService.convert(totalExpenses, 'TZS', displayCurrency);
+    const convertedProfit = this.currencyService.convert(profit, 'TZS', displayCurrency);
 
-      // Get recent sales (last 5)
-      const recentSales = await this.saleRepository.find({
-        where: { userId },
-        order: { createdAt: 'DESC' },
-        take: 5,
-      });
+    const symbol = this.currencyService.getSymbol(displayCurrency);
 
-      // Get recent expenses (last 5)
-      const recentExpenses = await this.expenseRepository.find({
-        where: { userId },
-        order: { createdAt: 'DESC' },
-        take: 5,
-      });
+    return {
+      totalSales,
+      totalRevenue: convertedRevenue,
+      totalExpenses: convertedExpenses,
+      profit: convertedProfit,
+      totalCustomers,
+      totalProducts,
+      totalPurchases,
+      salesTrend,
+      expenseTrend,
+      topProducts,
+      displayCurrency,
+      symbol,
+      // ✅ Abbreviated format for cards
+      formatted: {
+        totalRevenue: this.currencyService.formatCurrency(convertedRevenue, displayCurrency, true),
+        totalExpenses: this.currencyService.formatCurrency(convertedExpenses, displayCurrency, true),
+        profit: this.currencyService.formatCurrency(convertedProfit, displayCurrency, true),
+      },
+      // ✅ Full format for details
+      formattedFull: {
+        totalRevenue: this.currencyService.formatCurrencyFull(convertedRevenue, displayCurrency),
+        totalExpenses: this.currencyService.formatCurrencyFull(convertedExpenses, displayCurrency),
+        profit: this.currencyService.formatCurrencyFull(convertedProfit, displayCurrency),
+      },
+    };
+  }
 
-      // Get low stock items (quantity <= 10 and > 0)
-      let lowStockItems = [];
-      try {
-        lowStockItems = await this.productRepository
-          .createQueryBuilder('product')
-          .where('product.quantity <= 10')
-          .andWhere('product.quantity > 0')
-          .orderBy('product.quantity', 'ASC')
-          .take(5)
-          .getMany();
-      } catch (error: any) {
-        this.logger.warn('Could not fetch low stock items:', error?.message || 'Unknown error');
-        lowStockItems = [];
-      }
+  private async getTotalExpenses(userId: number): Promise<number> {
+    const expenses = await this.expenseRepository.find({ where: { userId } });
+    return expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  }
 
-      // Get top products by sales (for chart) - FIXED
-      let topProducts = [];
-      try {
-        topProducts = await this.saleRepository
-          .createQueryBuilder('sale')
-          .leftJoin('sale.items', 'item')
-          .where('sale.userId = :userId', { userId })
-          .select('item.productName', 'name')
-          .addSelect('COALESCE(SUM(item.total), 0)', 'sales')
-          .groupBy('item.productName')
-          .orderBy('SUM(item.total)', 'DESC')
-          .limit(5)
-          .getRawMany();
-        
-        // Filter out null/empty product names
-        topProducts = topProducts.filter(p => p.name && p.name !== 'null' && p.name !== '');
-        
-        // Convert sales to number
-        topProducts = topProducts.map(p => ({
-          ...p,
-          sales: Number(p.sales) || 0
-        }));
-        
-        this.logger.log(`Top products: ${JSON.stringify(topProducts)}`);
-      } catch (error: any) {
-        this.logger.warn('Could not fetch top products:', error?.message || 'Unknown error');
-        topProducts = [];
-      }
+  private async getSalesTrend(userId: number) {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-      // Get sales trend (last 7 days)
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sales = await this.saleRepository
+      .createQueryBuilder('sale')
+      .where('sale.userId = :userId', { userId })
+      .andWhere('sale.saleDate >= :date', { date: sevenDaysAgo })
+      .orderBy('sale.saleDate', 'ASC')
+      .getMany();
 
-      let salesTrend = [];
-      try {
-        salesTrend = await this.saleRepository
-          .createQueryBuilder('sale')
-          .where('sale.userId = :userId', { userId })
-          .andWhere('sale.createdAt >= :sevenDaysAgo', { sevenDaysAgo })
-          .select('DATE(sale.createdAt)', 'date')
-          .addSelect('COALESCE(SUM(sale.netAmount), 0)', 'amount')
-          .groupBy('DATE(sale.createdAt)')
-          .orderBy('DATE(sale.createdAt)', 'ASC')
-          .getRawMany();
-      } catch (error: any) {
-        this.logger.warn('Could not fetch sales trend:', error?.message || 'Unknown error');
-        salesTrend = [];
-      }
+    const trend: { date: string; amount: number }[] = [];
+    const dateMap = new Map<string, number>();
 
-      // Get expense trend (last 7 days)
-      let expenseTrend = [];
-      try {
-        expenseTrend = await this.expenseRepository
-          .createQueryBuilder('expense')
-          .where('expense.userId = :userId', { userId })
-          .andWhere('expense.createdAt >= :sevenDaysAgo', { sevenDaysAgo })
-          .select('DATE(expense.createdAt)', 'date')
-          .addSelect('COALESCE(SUM(expense.amount), 0)', 'amount')
-          .groupBy('DATE(expense.createdAt)')
-          .orderBy('DATE(expense.createdAt)', 'ASC')
-          .getRawMany();
-      } catch (error: any) {
-        this.logger.warn('Could not fetch expense trend:', error?.message || 'Unknown error');
-        expenseTrend = [];
-      }
-
-      const stats = {
-        totalSales,
-        totalRevenue,
-        totalExpenses,
-        totalCustomers,
-        totalProducts,
-        recentSales: recentSales.map(s => ({ ...s, items: [] })),
-        recentExpenses,
-        lowStockItems,
-        topProducts,
-        salesTrend: salesTrend.map(s => ({ date: s.date, amount: Number(s.amount) || 0 })),
-        expenseTrend: expenseTrend.map(e => ({ date: e.date, amount: Number(e.amount) || 0 })),
-      };
-
-      this.logger.log(`Final stats: totalProducts=${stats.totalProducts}, topProducts=${stats.topProducts.length}`);
-      return stats;
-    } catch (error: any) {
-      this.logger.error('Error fetching dashboard stats:', error?.message || 'Unknown error');
-      throw error;
+    for (const sale of sales) {
+      const date = sale.saleDate.toISOString().split('T')[0];
+      dateMap.set(date, (dateMap.get(date) || 0) + Number(sale.netAmount || 0));
     }
+
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const key = date.toISOString().split('T')[0];
+      trend.push({
+        date: key,
+        amount: dateMap.get(key) || 0,
+      });
+    }
+
+    return trend;
+  }
+
+  private async getExpenseTrend(userId: number) {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const expenses = await this.expenseRepository
+      .createQueryBuilder('expense')
+      .where('expense.userId = :userId', { userId })
+      .andWhere('expense.expenseDate >= :date', { date: sevenDaysAgo })
+      .orderBy('expense.expenseDate', 'ASC')
+      .getMany();
+
+    const trend: { date: string; amount: number }[] = [];
+    const dateMap = new Map<string, number>();
+
+    for (const expense of expenses) {
+      const date = expense.expenseDate.toISOString().split('T')[0];
+      dateMap.set(date, (dateMap.get(date) || 0) + Number(expense.amount || 0));
+    }
+
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const key = date.toISOString().split('T')[0];
+      trend.push({
+        date: key,
+        amount: dateMap.get(key) || 0,
+      });
+    }
+
+    return trend;
+  }
+
+  private async getTopProducts(userId: number) {
+    const sales = await this.saleRepository.find({
+      where: { userId },
+      relations: { items: true },
+    });
+
+    const productMap = new Map<number, { name: string; sales: number }>();
+
+    for (const sale of sales) {
+      for (const item of sale.items || []) {
+        const existing = productMap.get(item.productId);
+        if (existing) {
+          existing.sales += Number(item.total || 0);
+        } else {
+          productMap.set(item.productId, {
+            name: item.productName || 'Unknown',
+            sales: Number(item.total || 0),
+          });
+        }
+      }
+    }
+
+    return Array.from(productMap.values())
+      .sort((a, b) => b.sales - a.sales)
+      .slice(0, 5);
   }
 }

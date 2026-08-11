@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { PurchaseOrder } from './entities/purchase-order.entity';
 import { PurchaseItem } from './entities/purchase-item.entity';
 import { CreatePurchaseDto } from './dto/create-purchase.dto';
+import { CurrencyService } from '../common/services/currency.service';
 
 @Injectable()
 export class PurchasesService {
@@ -14,6 +15,7 @@ export class PurchasesService {
     private purchaseOrderRepository: Repository<PurchaseOrder>,
     @InjectRepository(PurchaseItem)
     private purchaseItemRepository: Repository<PurchaseItem>,
+    private currencyService: CurrencyService,
   ) {}
 
   async create(createPurchaseDto: CreatePurchaseDto, userId: number): Promise<PurchaseOrder> {
@@ -58,21 +60,32 @@ export class PurchasesService {
     return this.findOne(savedOrder.id);
   }
 
-  async findAll(userId: number): Promise<PurchaseOrder[]> {
-    return this.purchaseOrderRepository.find({
+  async findAll(userId: number): Promise<any[]> {
+    const orders = await this.purchaseOrderRepository.find({
       where: { userId },
       relations: { items: true },
       order: { orderDate: 'DESC' },
     });
+
+    return orders.map(order => ({
+      ...order,
+      formattedTotal: this.currencyService.formatCurrencyFull(order.totalAmount, 'TZS'),
+      formattedTotalShort: this.currencyService.formatCurrency(order.totalAmount, 'TZS', true),
+    }));
   }
 
-  async findOne(id: number): Promise<PurchaseOrder> {
+  async findOne(id: number): Promise<any> {
     const order = await this.purchaseOrderRepository.findOne({
       where: { id },
       relations: { items: true },
     });
     if (!order) throw new NotFoundException(`Purchase order with ID ${id} not found`);
-    return order;
+
+    return {
+      ...order,
+      formattedTotal: this.currencyService.formatCurrencyFull(order.totalAmount, 'TZS'),
+      formattedTotalShort: this.currencyService.formatCurrency(order.totalAmount, 'TZS', true),
+    };
   }
 
   async remove(id: number, userId: number): Promise<void> {

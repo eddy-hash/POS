@@ -1,51 +1,35 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Delete,
-  Body,
-  Param,
-  UseGuards,
-  Request,
-  ParseIntPipe,
-  Logger,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
 import { SalesService } from './sales.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Permissions } from '../auth/decorators/permissions.decorator';
+import { Permission } from '../auth/enums/roles.enum';
+import { RBACGuard } from '../auth/guards/rbac.guard';
 
 @Controller('sales')
-@UseGuards(JwtAuthGuard)
+@UseGuards(RBACGuard)
 export class SalesController {
-  private readonly logger = new Logger(SalesController.name);
   constructor(private salesService: SalesService) {}
 
-  @Post()
-  @HttpCode(HttpStatus.CREATED)
-  async create(@Body() createSaleDto: any, @Request() req) {
-    this.logger.log('Creating sale...');
-    const sale = await this.salesService.create(createSaleDto, req.user.id);
-    return { success: true, data: sale };
-  }
-
   @Get()
+  @Permissions(Permission.SALE_READ)
   async findAll(@Request() req) {
-    this.logger.log('Fetching sales...');
-    const sales = await this.salesService.findAll(req.user.id);
-    return { success: true, data: sales };
+    return this.salesService.findAll(req.user.id);
   }
 
   @Get(':id')
-  async findOne(@Param('id', ParseIntPipe) id: number) {
-    const sale = await this.salesService.findOne(id);
-    return { success: true, data: sale };
+  @Permissions(Permission.SALE_READ)
+  async findOne(@Param('id') id: string) {
+    return this.salesService.findOne(+id);
+  }
+
+  @Post()
+  @Permissions(Permission.SALE_CREATE)
+  async create(@Body() createSaleDto: any, @Request() req) {
+    return this.salesService.create(createSaleDto, req.user.id);
   }
 
   @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    await this.salesService.remove(id);
-    return { success: true };
+  @Permissions(Permission.SALE_DELETE)
+  async remove(@Param('id') id: string) {
+    return this.salesService.remove(+id);
   }
 }

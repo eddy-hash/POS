@@ -1,60 +1,41 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
 import { CustomersService } from './customers.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Permissions } from '../auth/decorators/permissions.decorator';
+import { Permission } from '../auth/enums/roles.enum';
+import { RBACGuard } from '../auth/guards/rbac.guard';
 
 @Controller('customers')
-@UseGuards(JwtAuthGuard)
+@UseGuards(RBACGuard)
 export class CustomersController {
-  constructor(private readonly customersService: CustomersService) {}
-
-  @Post()
-  async create(@Body() createCustomerDto: any, @Request() req) {
-    const customer = await this.customersService.create(createCustomerDto, req.user.id);
-    return {
-      success: true,
-      data: customer,
-      message: 'Customer created successfully',
-    };
-  }
+  constructor(private customersService: CustomersService) {}
 
   @Get()
+  @Permissions(Permission.CUSTOMER_READ)
   async findAll(@Request() req) {
-    const customers = await this.customersService.findAll(req.user.id);
-    return {
-      success: true,
-      data: customers,
-    };
+    return this.customersService.findAll(req.user.id);
   }
 
   @Get(':id')
-  async findOne(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    const customer = await this.customersService.findOne(id, req.user.id);
-    return {
-      success: true,
-      data: customer,
-    };
+  @Permissions(Permission.CUSTOMER_READ)
+  async findOne(@Param('id') id: string) {
+    return this.customersService.findOne(+id);
+  }
+
+  @Post()
+  @Permissions(Permission.CUSTOMER_CREATE)
+  async create(@Body() createCustomerDto: any, @Request() req) {
+    return this.customersService.create(createCustomerDto, req.user.id);
   }
 
   @Put(':id')
-  async update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateCustomerDto: any,
-    @Request() req,
-  ) {
-    const customer = await this.customersService.update(id, updateCustomerDto, req.user.id);
-    return {
-      success: true,
-      data: customer,
-      message: 'Customer updated successfully',
-    };
+  @Permissions(Permission.CUSTOMER_UPDATE)
+  async update(@Param('id') id: string, @Body() updateCustomerDto: any, @Request() req) {
+    return this.customersService.update(+id, updateCustomerDto, req.user.id);
   }
 
   @Delete(':id')
-  async remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    await this.customersService.remove(id, req.user.id);
-    return {
-      success: true,
-      message: 'Customer deleted successfully',
-    };
+  @Permissions(Permission.CUSTOMER_DELETE)
+  async remove(@Param('id') id: string, @Request() req) {
+    return this.customersService.remove(+id, req.user.id);
   }
 }

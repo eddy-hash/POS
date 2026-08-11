@@ -4,8 +4,9 @@ import { Repository } from 'typeorm';
 import { Sale } from '../sales/entities/sale.entity';
 import { Expense } from '../expenses/entities/expense.entity';
 import { Product } from '../products/entities/product.entity';
-import { User } from '../users/entities/user.entity';
 import { Customer } from '../customers/entities/customer.entity';
+import { PurchaseOrder } from '../purchases/entities/purchase-order.entity';
+import { CurrencyService } from '../common/services/currency.service';
 
 @Injectable()
 export class ReportsService {
@@ -18,219 +19,230 @@ export class ReportsService {
     private expenseRepository: Repository<Expense>,
     @InjectRepository(Product)
     private productRepository: Repository<Product>,
-    @InjectRepository(User)
-    private userRepository: Repository<User>,
     @InjectRepository(Customer)
     private customerRepository: Repository<Customer>,
+    @InjectRepository(PurchaseOrder)
+    private purchaseRepository: Repository<PurchaseOrder>,
+    private currencyService: CurrencyService,
   ) {}
 
-  async getUserInfo(userId: number): Promise<User | null> {
-    return this.userRepository.findOne({ where: { id: userId } });
-  }
+  // ✅ Accept 3 arguments: userId, range, displayCurrency
+  async getStats(
+    userId: number,
+    range: string = 'month',
+    displayCurrency: string = 'TZS',
+  ): Promise<any> {
+    this.logger.log(`Fetching reports for user ${userId}, range: ${range}, currency: ${displayCurrency}`);
 
-  async getStats(userId: number, range: string) {
-    this.logger.log(`Fetching reports for user ${userId}, range: ${range}`);
-
-    // Get date range
-    const now = new Date();
-    let startDate = new Date();
-    
-    switch (range) {
-      case 'today':
-        startDate = new Date(now.setHours(0, 0, 0, 0));
-        break;
-      case 'week':
-        startDate = new Date(now.setDate(now.getDate() - 7));
-        break;
-      case 'month':
-        startDate = new Date(now.setMonth(now.getMonth() - 1));
-        break;
-      case 'quarter':
-        startDate = new Date(now.setMonth(now.getMonth() - 3));
-        break;
-      case 'year':
-        startDate = new Date(now.setFullYear(now.getFullYear() - 1));
-        break;
-      default:
-        startDate = new Date(now.setMonth(now.getMonth() - 1));
-    }
-
-    // 1. Total Sales Count
-    const totalSales = await this.saleRepository.count({
+    const sales = await this.saleRepository.find({
       where: { userId },
-    });
-    this.logger.log(`Total sales: ${totalSales}`);
-
-    // 2. Total Revenue
-    const revenueResult = await this.saleRepository
-      .createQueryBuilder('sale')
-      .where('sale.userId = :userId', { userId })
-      .select('COALESCE(SUM(sale.netAmount), 0)', 'total')
-      .getRawOne();
-    const totalRevenue = Number(revenueResult?.total) || 0;
-    this.logger.log(`Total revenue: ${totalRevenue}`);
-
-    // 3. Total Expenses
-    const expenseResult = await this.expenseRepository
-      .createQueryBuilder('expense')
-      .where('expense.userId = :userId', { userId })
-      .select('COALESCE(SUM(expense.amount), 0)', 'total')
-      .getRawOne();
-    const totalExpenses = Number(expenseResult?.total) || 0;
-    this.logger.log(`Total expenses: ${totalExpenses}`);
-
-    // 4. Total Customers
-    const totalCustomers = await this.customerRepository.count({
-      where: { userId },
-    });
-    this.logger.log(`Total customers: ${totalCustomers}`);
-
-    // 5. Total Products
-    const totalProducts = await this.productRepository.count();
-    this.logger.log(`Total products: ${totalProducts}`);
-
-    // 6. Sales Trend (last 7 days)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-    const salesTrend = await this.saleRepository
-      .createQueryBuilder('sale')
-      .where('sale.userId = :userId', { userId })
-      .andWhere('sale.createdAt >= :sevenDaysAgo', { sevenDaysAgo })
-      .select('DATE(sale.createdAt)', 'date')
-      .addSelect('COALESCE(SUM(sale.netAmount), 0)', 'amount')
-      .groupBy('DATE(sale.createdAt)')
-      .orderBy('DATE(sale.createdAt)', 'ASC')
-      .getRawMany();
-
-    // 7. Expense Trend (last 7 days)
-    const expenseTrend = await this.expenseRepository
-      .createQueryBuilder('expense')
-      .where('expense.userId = :userId', { userId })
-      .andWhere('expense.createdAt >= :sevenDaysAgo', { sevenDaysAgo })
-      .select('DATE(expense.createdAt)', 'date')
-      .addSelect('COALESCE(SUM(expense.amount), 0)', 'amount')
-      .groupBy('DATE(expense.createdAt)')
-      .orderBy('DATE(expense.createdAt)', 'ASC')
-      .getRawMany();
-
-    // 8. Top Products
-    const topProducts = await this.saleRepository
-      .createQueryBuilder('sale')
-      .leftJoin('sale.items', 'item')
-      .where('sale.userId = :userId', { userId })
-      .select('item.productName', 'name')
-      .addSelect('COALESCE(SUM(item.total), 0)', 'sales')
-      .groupBy('item.productName')
-      .orderBy('SUM(item.total)', 'DESC')
-      .limit(5)
-      .getRawMany();
-
-    // 9. Recent Sales
-    const recentSales = await this.saleRepository.find({
-      where: { userId },
-      order: { createdAt: 'DESC' },
-      take: 5,
+      order: { saleDate: 'DESC' },
     });
 
-    // 10. Recent Expenses
+    const totalSales = sales.length;
+    const totalRevenue = sales.reduce((sum, s) => sum + Number(s.netAmount || 0), 0);
+    const totalExpenses = await this.getTotalExpenses(userId);
+    const totalCustomers = await this.customerRepository.count({ where: { userId } });
+    const totalProducts = await this.productRepository.count({ where: { isActive: true } });
+    const totalPurchases = await this.purchaseRepository.count({ where: { userId } });
+    const profit = totalRevenue - totalExpenses;
+
+    const salesTrend = await this.getSalesTrend(userId);
+    const expenseTrend = await this.getExpenseTrend(userId);
+    const topProducts = await this.getTopProducts(userId);
+    const monthlyStats = await this.getMonthlyStats(userId, displayCurrency);
+
+    const recentSales = sales.slice(0, 5);
     const recentExpenses = await this.expenseRepository.find({
       where: { userId },
-      order: { createdAt: 'DESC' },
+      order: { expenseDate: 'DESC' },
+      take: 5,
+    });
+    const lowStockItems = await this.productRepository.find({
+      where: { isActive: true },
+      order: { quantity: 'ASC' },
       take: 5,
     });
 
-    // 11. Low Stock Items
-    const lowStockItems = await this.productRepository
-      .createQueryBuilder('product')
-      .where('product.quantity <= 10')
-      .andWhere('product.quantity > 0')
-      .orderBy('product.quantity', 'ASC')
-      .take(5)
-      .getMany();
-
-    // 12. Monthly Stats (last 6 months)
-    const monthlyStats = await this.getMonthlyStats(userId);
+    // ✅ Convert all amounts to display currency
+    const convertedRevenue = this.currencyService.convert(totalRevenue, 'TZS', displayCurrency);
+    const convertedExpenses = this.currencyService.convert(totalExpenses, 'TZS', displayCurrency);
+    const convertedProfit = this.currencyService.convert(profit, 'TZS', displayCurrency);
 
     return {
       totalSales,
-      totalRevenue,
-      totalExpenses,
+      totalRevenue: convertedRevenue,
+      totalExpenses: convertedExpenses,
       totalCustomers,
       totalProducts,
-      profit: totalRevenue - totalExpenses,
-      salesTrend: salesTrend.map(s => ({ 
-        date: s.date, 
-        amount: Number(s.amount) || 0 
-      })),
-      expenseTrend: expenseTrend.map(e => ({ 
-        date: e.date, 
-        amount: Number(e.amount) || 0 
-      })),
-      topProducts: topProducts.map(p => ({
-        name: p.name || 'Unknown',
-        sales: Number(p.sales) || 0
-      })),
-      recentSales: recentSales.map(s => ({
-        ...s,
-        netAmount: Number(s.netAmount) || 0,
-        totalAmount: Number(s.totalAmount) || 0,
-      })),
-      recentExpenses: recentExpenses.map(e => ({
-        ...e,
-        amount: Number(e.amount) || 0,
-      })),
-      lowStockItems: lowStockItems.map(p => ({
-        ...p,
-        quantity: Number(p.quantity) || 0,
-        price: Number(p.price) || 0,
-        costPrice: Number(p.costPrice) || 0,
-      })),
+      totalPurchases,
+      profit: convertedProfit,
+      salesTrend,
+      expenseTrend,
+      topProducts,
       monthlyStats,
+      recentSales,
+      recentExpenses,
+      lowStockItems,
+      displayCurrency,
+      formatted: {
+        totalRevenue: this.currencyService.formatCurrencyFull(convertedRevenue, displayCurrency),
+        totalRevenueShort: this.currencyService.formatCurrency(convertedRevenue, displayCurrency, true),
+        totalExpenses: this.currencyService.formatCurrencyFull(convertedExpenses, displayCurrency),
+        totalExpensesShort: this.currencyService.formatCurrency(convertedExpenses, displayCurrency, true),
+        profit: this.currencyService.formatCurrencyFull(convertedProfit, displayCurrency),
+        profitShort: this.currencyService.formatCurrency(convertedProfit, displayCurrency, true),
+      },
     };
   }
 
-  private async getMonthlyStats(userId: number) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const monthlyStats = [];
-    
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    
-    for (let i = 5; i >= 0; i--) {
-      const monthIndex = (currentMonth - i + 12) % 12;
-      const year = currentMonth - i < 0 ? currentYear - 1 : currentYear;
-      const month = months[monthIndex];
-      
-      // Get revenue for this month
-      const revenueResult = await this.saleRepository
-        .createQueryBuilder('sale')
-        .where('sale.userId = :userId', { userId })
-        .andWhere('EXTRACT(YEAR FROM sale.createdAt) = :year', { year })
-        .andWhere('EXTRACT(MONTH FROM sale.createdAt) = :month', { month: monthIndex + 1 })
-        .select('COALESCE(SUM(sale.netAmount), 0)', 'total')
-        .getRawOne();
-      const revenue = Number(revenueResult?.total) || 0;
-      
-      // Get expenses for this month
-      const expenseResult = await this.expenseRepository
-        .createQueryBuilder('expense')
-        .where('expense.userId = :userId', { userId })
-        .andWhere('EXTRACT(YEAR FROM expense.createdAt) = :year', { year })
-        .andWhere('EXTRACT(MONTH FROM expense.createdAt) = :month', { month: monthIndex + 1 })
-        .select('COALESCE(SUM(expense.amount), 0)', 'total')
-        .getRawOne();
-      const expenses = Number(expenseResult?.total) || 0;
-      
-      monthlyStats.push({
-        month,
-        revenue,
-        expenses,
-        profit: revenue - expenses,
+  private async getTotalExpenses(userId: number): Promise<number> {
+    const expenses = await this.expenseRepository.find({ where: { userId } });
+    return expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  }
+
+  private async getSalesTrend(userId: number) {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const sales = await this.saleRepository
+      .createQueryBuilder('sale')
+      .where('sale.userId = :userId', { userId })
+      .andWhere('sale.saleDate >= :date', { date: sevenDaysAgo })
+      .orderBy('sale.saleDate', 'ASC')
+      .getMany();
+
+    const trend: { date: string; amount: number }[] = [];
+    const dateMap = new Map<string, number>();
+
+    for (const sale of sales) {
+      const date = sale.saleDate.toISOString().split('T')[0];
+      dateMap.set(date, (dateMap.get(date) || 0) + Number(sale.netAmount || 0));
+    }
+
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const key = date.toISOString().split('T')[0];
+      trend.push({
+        date: key,
+        amount: dateMap.get(key) || 0,
       });
     }
-    
-    return monthlyStats;
+
+    return trend;
+  }
+
+  private async getExpenseTrend(userId: number) {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const expenses = await this.expenseRepository
+      .createQueryBuilder('expense')
+      .where('expense.userId = :userId', { userId })
+      .andWhere('expense.expenseDate >= :date', { date: sevenDaysAgo })
+      .orderBy('expense.expenseDate', 'ASC')
+      .getMany();
+
+    const trend: { date: string; amount: number }[] = [];
+    const dateMap = new Map<string, number>();
+
+    for (const expense of expenses) {
+      const date = expense.expenseDate.toISOString().split('T')[0];
+      dateMap.set(date, (dateMap.get(date) || 0) + Number(expense.amount || 0));
+    }
+
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const key = date.toISOString().split('T')[0];
+      trend.push({
+        date: key,
+        amount: dateMap.get(key) || 0,
+      });
+    }
+
+    return trend;
+  }
+
+  private async getTopProducts(userId: number) {
+    const sales = await this.saleRepository.find({
+      where: { userId },
+      relations: { items: true },
+    });
+
+    const productMap = new Map<number, { name: string; sales: number }>();
+
+    for (const sale of sales) {
+      for (const item of sale.items || []) {
+        const existing = productMap.get(item.productId);
+        if (existing) {
+          existing.sales += Number(item.total || 0);
+        } else {
+          productMap.set(item.productId, {
+            name: item.productName || 'Unknown',
+            sales: Number(item.total || 0),
+          });
+        }
+      }
+    }
+
+    return Array.from(productMap.values())
+      .sort((a, b) => b.sales - a.sales)
+      .slice(0, 5);
+  }
+
+  private async getMonthlyStats(userId: number, displayCurrency: string = 'TZS'): Promise<any[]> {
+    const sales = await this.saleRepository.find({
+      where: { userId },
+      order: { saleDate: 'DESC' },
+    });
+
+    const monthlyMap = new Map<string, { revenue: number; expenses: number; profit: number }>();
+
+    for (const sale of sales) {
+      const month = sale.saleDate.toISOString().slice(0, 7);
+      if (!monthlyMap.has(month)) {
+        monthlyMap.set(month, { revenue: 0, expenses: 0, profit: 0 });
+      }
+      const data = monthlyMap.get(month)!;
+      data.revenue += Number(sale.netAmount || 0);
+    }
+
+    const expenses = await this.expenseRepository.find({ where: { userId } });
+    for (const expense of expenses) {
+      const month = expense.expenseDate.toISOString().slice(0, 7);
+      if (!monthlyMap.has(month)) {
+        monthlyMap.set(month, { revenue: 0, expenses: 0, profit: 0 });
+      }
+      const data = monthlyMap.get(month)!;
+      data.expenses += Number(expense.amount || 0);
+    }
+
+    const result = Array.from(monthlyMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(-6)
+      .map(([month, data]) => {
+        const convertedRevenue = this.currencyService.convert(data.revenue, 'TZS', displayCurrency);
+        const convertedExpenses = this.currencyService.convert(data.expenses, 'TZS', displayCurrency);
+        const convertedProfit = this.currencyService.convert(data.revenue - data.expenses, 'TZS', displayCurrency);
+        
+        return {
+          month,
+          revenue: convertedRevenue,
+          expenses: convertedExpenses,
+          profit: convertedProfit,
+          formatted: {
+            revenue: this.currencyService.formatCurrencyFull(convertedRevenue, displayCurrency),
+            revenueShort: this.currencyService.formatCurrency(convertedRevenue, displayCurrency, true),
+            expenses: this.currencyService.formatCurrencyFull(convertedExpenses, displayCurrency),
+            expensesShort: this.currencyService.formatCurrency(convertedExpenses, displayCurrency, true),
+            profit: this.currencyService.formatCurrencyFull(convertedProfit, displayCurrency),
+            profitShort: this.currencyService.formatCurrency(convertedProfit, displayCurrency, true),
+          },
+        };
+      });
+
+    return result;
   }
 }

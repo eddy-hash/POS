@@ -1,83 +1,80 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Expense } from './entities/expense.entity';
+import { CurrencyService } from '../common/services/currency.service';
 
 @Injectable()
 export class ExpensesService {
   private readonly logger = new Logger(ExpensesService.name);
+
   constructor(
     @InjectRepository(Expense)
     private expenseRepository: Repository<Expense>,
+    private currencyService: CurrencyService,
   ) {}
 
   async create(createExpenseDto: any, userId: number): Promise<Expense> {
-    const expense = this.expenseRepository.create({ ...createExpenseDto, userId });
-    return await this.expenseRepository.save(expense) as unknown as Expense;
+    this.logger.log('Creating expense...');
+
+    const expense = new Expense();
+    expense.userId = userId;
+    expense.category = createExpenseDto.category || 'Uncategorized';
+    expense.description = createExpenseDto.description || '';
+    expense.amount = createExpenseDto.amount || 0;
+    expense.expenseDate = createExpenseDto.expenseDate || new Date();
+    expense.receiptPath = createExpenseDto.receiptPath || '';
+
+    const savedExpense = await this.expenseRepository.save(expense);
+    return savedExpense;
   }
 
-  async findAll(userId: number): Promise<{ expenses: Expense[]; total: number }> {
+  async findAll(userId: number): Promise<any[]> {
     const expenses = await this.expenseRepository.find({
       where: { userId },
       order: { expenseDate: 'DESC' },
     });
-    const total = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
-    return { expenses, total };
+
+    return expenses.map((expense) => ({
+      ...expense,
+      formattedAmount: this.currencyService.formatCurrencyFull(expense.amount, 'TZS'),
+      formattedAmountShort: this.currencyService.formatCurrency(expense.amount, 'TZS', true),
+    }));
   }
 
-  async findOne(id: number, userId: number): Promise<Expense> {
-    const expense = await this.expenseRepository.findOne({ where: { id, userId } });
-    if (!expense) throw new NotFoundException(`Expense with ID ${id} not found`);
-    return expense;
-  }
+  async findOne(id: number): Promise<any> {
+    const expense = await this.expenseRepository.findOne({ where: { id } });
 
-  async findByCategory(category: string, userId: number): Promise<{ expenses: Expense[]; total: number }> {
-    const expenses = await this.expenseRepository.find({
-      where: { userId, category },
-      order: { expenseDate: 'DESC' },
-    });
-    const total = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
-    return { expenses, total };
-  }
+    if (!expense) {
+      throw new NotFoundException(`Expense with ID ${id} not found`);
+    }
 
-  async findByDateRange(userId: number, startDate: Date, endDate: Date): Promise<{ expenses: Expense[]; total: number }> {
-    const expenses = await this.expenseRepository.find({
-      where: { userId, expenseDate: Between(startDate, endDate) },
-      order: { expenseDate: 'DESC' },
-    });
-    const total = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
-    return { expenses, total };
+    return {
+      ...expense,
+      formattedAmount: this.currencyService.formatCurrencyFull(expense.amount, 'TZS'),
+      formattedAmountShort: this.currencyService.formatCurrency(expense.amount, 'TZS', true),
+    };
   }
 
   async update(id: number, updateExpenseDto: any, userId: number): Promise<Expense> {
-    const expense = await this.findOne(id, userId);
+    const expense = await this.expenseRepository.findOne({ where: { id, userId } });
+
+    if (!expense) {
+      throw new NotFoundException(`Expense with ID ${id} not found`);
+    }
+
     Object.assign(expense, updateExpenseDto);
-    return await this.expenseRepository.save(expense) as unknown as Expense;
+    const updatedExpense = await this.expenseRepository.save(expense);
+    return updatedExpense;
   }
 
   async remove(id: number, userId: number): Promise<void> {
-    const expense = await this.findOne(id, userId);
+    const expense = await this.expenseRepository.findOne({ where: { id, userId } });
+
+    if (!expense) {
+      throw new NotFoundException(`Expense with ID ${id} not found`);
+    }
+
     await this.expenseRepository.remove(expense);
-  }
-
-  async getTotalByCategory(userId: number): Promise<any> {
-    const result = await this.expenseRepository
-      .createQueryBuilder('expense')
-      .where('expense.userId = :userId', { userId })
-      .select('expense.category', 'category')
-      .addSelect('SUM(expense.amount)', 'total')
-      .groupBy('expense.category')
-      .getRawMany();
-    const grandTotal = result.reduce((sum, item) => sum + Number(item.total), 0);
-    return { categories: result, grandTotal };
-  }
-
-  async getTotalAmount(userId: number): Promise<{ total: number }> {
-    const result = await this.expenseRepository
-      .createQueryBuilder('expense')
-      .where('expense.userId = :userId', { userId })
-      .select('SUM(expense.amount)', 'total')
-      .getRawOne();
-    return { total: Number(result?.total) || 0 };
   }
 }

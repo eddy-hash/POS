@@ -12,6 +12,10 @@ import { CustomersModule } from './customers/customers.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ReportsModule } from './reports/reports.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { HealthModule } from './health/health.module';
+import { CacheModule } from './cache/cache.module';
+import { SentryModule } from './sentry/sentry.module';
+import { CurrencyModule } from './currency/currency.module';
 import { PurchaseOrder } from './purchases/entities/purchase-order.entity';
 import { PurchaseItem } from './purchases/entities/purchase-item.entity';
 
@@ -36,6 +40,10 @@ import { PurchaseItem } from './purchases/entities/purchase-item.entity';
       inject: [ConfigService],
     }),
     TypeOrmModule.forFeature([PurchaseOrder, PurchaseItem]),
+    HealthModule,
+    CacheModule,
+    SentryModule,
+    CurrencyModule,
     AuthModule,
     UsersModule,
     ProductsModule,

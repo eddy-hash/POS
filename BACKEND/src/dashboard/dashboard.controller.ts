@@ -1,21 +1,19 @@
-import { Controller, Get, UseGuards, Request, Logger } from '@nestjs/common';
+import { Controller, Get, UseGuards, Request, Query } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Public } from '../auth/decorators/permissions.decorator';
 
 @Controller('dashboard')
-@UseGuards(JwtAuthGuard)
 export class DashboardController {
-  private readonly logger = new Logger(DashboardController.name);
-  constructor(private readonly dashboardService: DashboardService) {}
+  constructor(private dashboardService: DashboardService) {}
 
   @Get('stats')
-  async getStats(@Request() req) {
-    const userId = req.user.id;
-    this.logger.log(`Fetching stats for user ${userId}`);
-    const stats = await this.dashboardService.getStats(userId);
-    return {
-      success: true,
-      data: stats,
-    };
+  @Public()
+  async getStats(
+    @Request() req,
+    @Query('currency') currency?: string,
+  ) {
+    const userId = req.user?.id || 1;
+    const displayCurrency = currency || 'TZS';
+    return this.dashboardService.getStats(userId, displayCurrency);
   }
 }

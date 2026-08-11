@@ -1,93 +1,50 @@
-import { Controller, Get, Post, Put, Delete, Patch, Body, Param, UseGuards, Request, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request, Query } from '@nestjs/common';
 import { ProductsService } from './products.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Permissions } from '../auth/decorators/permissions.decorator';
+import { Permission } from '../auth/enums/roles.enum';
+import { RBACGuard } from '../auth/guards/rbac.guard';
+import { Public } from '../auth/decorators/permissions.decorator';
 
 @Controller('products')
-@UseGuards(JwtAuthGuard)
+@UseGuards(RBACGuard)
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
-
-  @Post()
-  async create(@Body() createProductDto: any, @Request() req) {
-    const product = await this.productsService.create(createProductDto);
-    return {
-      success: true,
-      data: product,
-      message: 'Product created successfully',
-    };
-  }
+  constructor(private productsService: ProductsService) {}
 
   @Get()
-  async findAll(@Query('search') search?: string) {
-    let products;
-    if (search && search.trim() !== '') {
-      products = await this.productsService.search(search);
-    } else {
-      products = await this.productsService.findAll();
-    }
-    return {
-      success: true,
-      data: products,
-    };
-  }
-
-  @Get('low-stock')
-  async getLowStock(@Query('threshold') threshold?: string) {
-    const thresholdNum = threshold ? parseInt(threshold) : 10;
-    const products = await this.productsService.getLowStock(thresholdNum);
-    return {
-      success: true,
-      data: products,
-    };
-  }
-
-  @Get('out-of-stock')
-  async getOutOfStock() {
-    const products = await this.productsService.getOutOfStock();
-    return {
-      success: true,
-      data: products,
-    };
+  @Permissions(Permission.PRODUCT_READ)
+  async findAll(
+    @Request() req,
+    @Query('currency') currency?: string,
+  ) {
+    const displayCurrency = currency || 'TZS';
+    return this.productsService.findAll(displayCurrency);
   }
 
   @Get(':id')
-  async findOne(@Param('id', ParseIntPipe) id: number) {
-    const product = await this.productsService.findOne(id);
-    return {
-      success: true,
-      data: product,
-    };
+  @Permissions(Permission.PRODUCT_READ)
+  async findOne(
+    @Param('id') id: string,
+    @Query('currency') currency?: string,
+  ) {
+    const displayCurrency = currency || 'TZS';
+    return this.productsService.findOne(+id, displayCurrency);
+  }
+
+  @Post()
+  @Permissions(Permission.PRODUCT_CREATE)
+  async create(@Body() createProductDto: any) {
+    return this.productsService.create(createProductDto);
   }
 
   @Put(':id')
-  async update(@Param('id', ParseIntPipe) id: number, @Body() updateProductDto: any) {
-    const product = await this.productsService.update(id, updateProductDto);
-    return {
-      success: true,
-      data: product,
-      message: 'Product updated successfully',
-    };
+  @Permissions(Permission.PRODUCT_UPDATE)
+  async update(@Param('id') id: string, @Body() updateProductDto: any) {
+    return this.productsService.update(+id, updateProductDto);
   }
 
   @Delete(':id')
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    await this.productsService.remove(id);
-    return {
-      success: true,
-      message: 'Product deleted successfully',
-    };
-  }
-
-  @Patch(':id/stock')
-  async updateStock(
-    @Param('id', ParseIntPipe) id: number,
-    @Body('quantity') quantity: number,
-  ) {
-    const product = await this.productsService.updateStock(id, quantity);
-    return {
-      success: true,
-      data: product,
-      message: 'Stock updated successfully',
-    };
+  @Permissions(Permission.PRODUCT_DELETE)
+  async remove(@Param('id') id: string) {
+    return this.productsService.remove(+id);
   }
 }

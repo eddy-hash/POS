@@ -1,43 +1,34 @@
-import { Controller, Post, Body, UseGuards, Request, Get, Put, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { LocalAuthGuard } from './guards/local-auth.guard';
+import { Public } from './decorators/permissions.decorator';
 
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
-  @Post('register')
-  async register(@Body() registerDto: { email: string; password: string; name: string }) {
-    return this.authService.register(registerDto);
-  }
-
-  @UseGuards(LocalAuthGuard)
   @Post('login')
-  async login(@Request() req) {
-    return this.authService.login(req.user);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get('profile')
-  async getProfile(@Request() req) {
-    return this.authService.getProfile(req.user.id);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Put('profile')
-  async updateProfile(@Request() req, @Body() updateData: any) {
-    return this.authService.updateProfile(req.user.id, updateData);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Post('change-password')
+  @Public()
   @HttpCode(HttpStatus.OK)
-  async changePassword(@Request() req, @Body() body: { currentPassword: string; newPassword: string }) {
-    await this.authService.changePassword(req.user.id, body.currentPassword, body.newPassword);
+  async login(@Body() loginDto: { email: string; password: string }) {
+    const user = await this.authService.validateUser(loginDto.email, loginDto.password);
+    const token = await this.authService.login(user);
+    
     return {
       success: true,
-      message: 'Password changed successfully',
+      access_token: token.access_token,
+      user: {
+        id: user.id,
+        name: user.name || 'User',
+        email: user.email,
+        role: user.role || 'viewer',
+        permissions: user.permissions || [],
+      },
     };
+  }
+
+  @Post('register')
+  @Public()
+  async register(@Body() registerDto: any) {
+    return this.authService.register(registerDto);
   }
 }

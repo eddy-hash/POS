@@ -1,36 +1,48 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { Logger } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
+import helmet from 'helmet';
+import { setupSwagger } from './swagger/swagger.config';
+import { ResponseInterceptor } from './common/interceptors/response.interceptor';
+import { RequestLoggerInterceptor } from './common/interceptors/request-logger.interceptor';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
-  
-  try {
-    logger.log('🚀 Starting NestJS application...');
-    logger.log('📦 Connecting to database...');
-    
-    const app = await NestFactory.create(AppModule, {
-      logger: ['error', 'warn', 'log', 'debug', 'verbose'],
-    });
-    
-    app.enableCors({
-      origin: ['http://localhost:3000', 'http://172.16.130.112:3000', 'http://192.168.137.130:3000'],
-      credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
-    });
-    
-    const port = process.env.PORT || 3001;
-    await app.listen(port, '0.0.0.0');
-    
-    logger.log(`✅ Application is running on: http://localhost:${port}`);
-    logger.log(`🌐 Accessible at: http://192.168.137.130:${port}`);
-    logger.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-    
-  } catch (error) {
-    logger.error('❌ Failed to start application:', error);
-    process.exit(1);
-  }
+
+  const app = await NestFactory.create(AppModule, {
+    logger: ['error', 'warn', 'log', 'debug', 'verbose'],
+  });
+
+  app.use(helmet());
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,
+    transform: true,
+    forbidNonWhitelisted: true,
+    forbidUnknownValues: true,
+  }));
+
+  app.enableCors({
+    origin: ['http://localhost:3000', 'http://localhost:3002'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
+    exposedHeaders: ['X-Request-ID'],
+  });
+
+  app.useGlobalInterceptors(
+    new ResponseInterceptor(),
+    new RequestLoggerInterceptor(),
+  );
+
+  setupSwagger(app);
+
+  const port = process.env.PORT || 3001;
+  await app.listen(port, '0.0.0.0');
+
+  logger.log(`✅ Application running on: http://localhost:${port}`);
+  logger.log(`📚 API Docs: http://localhost:${port}/api-docs`);
+  logger.log(`🔒 Security: Helmet, CORS, Validation`);
+  logger.log(`🔐 RBAC: Role-based access control ready`);
 }
 
 bootstrap();

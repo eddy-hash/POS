@@ -1,30 +1,35 @@
-import { Controller, Get, Post, Body, Param, Delete, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
 import { PurchasesService } from './purchases.service';
-import { CreatePurchaseDto } from './dto/create-purchase.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Permissions } from '../auth/decorators/permissions.decorator';
+import { Permission } from '../auth/enums/roles.enum';
+import { RBACGuard } from '../auth/guards/rbac.guard';
 
 @Controller('purchases')
-@UseGuards(JwtAuthGuard)
+@UseGuards(RBACGuard)
 export class PurchasesController {
-  constructor(private readonly purchasesService: PurchasesService) {}
-
-  @Post()
-  create(@Body() createPurchaseDto: CreatePurchaseDto, @Request() req) {
-    return this.purchasesService.create(createPurchaseDto, req.user.id);
-  }
+  constructor(private purchasesService: PurchasesService) {}
 
   @Get()
-  findAll(@Request() req) {
+  @Permissions(Permission.PURCHASE_READ)
+  async findAll(@Request() req) {
     return this.purchasesService.findAll(req.user.id);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @Request() req) {
+  @Permissions(Permission.PURCHASE_READ)
+  async findOne(@Param('id') id: string) {
     return this.purchasesService.findOne(+id);
   }
 
+  @Post()
+  @Permissions(Permission.PURCHASE_CREATE)
+  async create(@Body() createPurchaseDto: any, @Request() req) {
+    return this.purchasesService.create(createPurchaseDto, req.user.id);
+  }
+
   @Delete(':id')
-  remove(@Param('id') id: string, @Request() req) {
+  @Permissions(Permission.PURCHASE_DELETE)
+  async remove(@Param('id') id: string, @Request() req) {
     return this.purchasesService.remove(+id, req.user.id);
   }
 }
