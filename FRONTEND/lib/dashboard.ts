@@ -1,20 +1,4 @@
-import axios from 'axios';
-import { getAuthToken } from './auth';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
-const api = axios.create({
-  baseURL: API_URL,
-  headers: { 'Content-Type': 'application/json' },
-});
-
-api.interceptors.request.use((config) => {
-  const token = getAuthToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+import { api } from './services/api';
 
 export interface DashboardStats {
   totalSales: number;
@@ -23,27 +7,36 @@ export interface DashboardStats {
   totalCustomers: number;
   totalProducts: number;
   totalPurchases?: number;
+  profit: number;
   recentSales: any[];
   recentExpenses: any[];
   lowStockItems: any[];
   topProducts: any[];
   salesTrend: any[];
   expenseTrend: any[];
+  formatted?: {
+    totalRevenue: string;
+    totalExpenses: string;
+    profit: string;
+  };
+  formattedFull?: {
+    totalRevenue: string;
+    totalExpenses: string;
+    profit: string;
+  };
+  displayCurrency?: string;
+  symbol?: string;
 }
 
-export const fetchDashboardStats = async (): Promise<DashboardStats> => {
+export const fetchDashboardStats = async (currency?: string): Promise<DashboardStats> => {
   try {
-    const response = await api.get('/dashboard/stats');
-    console.log('📊 Dashboard response:', response.data);
+    const url = currency ? `/dashboard/stats?currency=${currency}` : '/dashboard/stats';
+    const response = await api.get(url);
     
-    let data = response.data;
-    if (data && data.data) {
-      data = data.data;
-    }
+    // ✅ Extract data from nested response structure
+    const data = response.data || response;
     
-    // Ensure topProducts is always an array
     const topProducts = data.topProducts || [];
-    console.log('📊 Top Products:', topProducts);
     
     return {
       totalSales: data.totalSales || 0,
@@ -52,15 +45,26 @@ export const fetchDashboardStats = async (): Promise<DashboardStats> => {
       totalCustomers: data.totalCustomers || 0,
       totalProducts: data.totalProducts || 0,
       totalPurchases: data.totalPurchases || 0,
+      profit: data.profit || 0,
       recentSales: data.recentSales || [],
       recentExpenses: data.recentExpenses || [],
       lowStockItems: data.lowStockItems || [],
       topProducts: topProducts,
       salesTrend: data.salesTrend || [],
       expenseTrend: data.expenseTrend || [],
+      formatted: data.formatted || undefined,
+      formattedFull: data.formattedFull || undefined,
+      displayCurrency: data.displayCurrency,
+      symbol: data.symbol,
     };
   } catch (error: any) {
     console.error('❌ Error fetching dashboard stats:', error);
-    throw new Error(error.response?.data?.message || error.message || 'Failed to fetch dashboard stats');
+    
+    if (error.message?.includes('401') || error.message?.includes('403')) {
+      localStorage.removeItem('access_token');
+      window.location.href = '/';
+    }
+    
+    throw new Error(error.message || 'Failed to fetch dashboard stats');
   }
 };

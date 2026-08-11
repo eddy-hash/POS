@@ -1,4 +1,5 @@
 'use client';
+
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -13,40 +14,34 @@ import {
 } from '@heroicons/react/24/outline';
 import { showErrorToast } from '@/lib/toast';
 import SuccessModal from '@/components/SuccessModal';
+import { useThemeSafe } from '@/context/ThemeContext';
+import { useCurrencySafe } from '@/context/CurrencyContext';
 
 export default function SettingsPage() {
   const router = useRouter();
-  const [isDark, setIsDark] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [user, setUser] = useState<any>(null);
-  const [currency, setCurrency] = useState('TZS');
+  const themeContext = useThemeSafe();
+  const isDark = themeContext?.isDark ?? false;
+  const toggleTheme = themeContext?.toggleTheme || (() => {});
 
-  // Modal state
+  const currencyContext = useCurrencySafe();
+  const currency = currencyContext?.currency || 'TZS';
+  const setCurrency = currencyContext?.setCurrency || (() => {});
+  const symbols = currencyContext?.symbols || {};
+  const loading = currencyContext?.loading || false;
+
+  const [user, setUser] = useState<any>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState('');
   const [modalMessage, setModalMessage] = useState('');
+  const [selectedCurrency, setSelectedCurrency] = useState(currency);
 
   useEffect(() => {
-    // Load theme from localStorage
-    const stored = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const initial = stored === 'dark' || (!stored && prefersDark);
-    setIsDark(initial);
-    document.documentElement.classList.toggle('dark', initial);
-
-    // Load currency
-    const savedCurrency = localStorage.getItem('currency') || 'TZS';
-    setCurrency(savedCurrency);
-
     fetchUserProfile();
-
-    // Listen for theme changes
-    const handleThemeChange = (e: CustomEvent) => {
-      setIsDark(e.detail.isDark);
-    };
-    window.addEventListener('themeChange', handleThemeChange as EventListener);
-    return () => window.removeEventListener('themeChange', handleThemeChange as EventListener);
   }, []);
+
+  useEffect(() => {
+    setSelectedCurrency(currency);
+  }, [currency]);
 
   const fetchUserProfile = async () => {
     try {
@@ -59,43 +54,52 @@ export default function SettingsPage() {
       if (response.status === 401) { localStorage.removeItem('access_token'); router.push('/'); return; }
       if (!response.ok) throw new Error('Failed to fetch profile');
       const data = await response.json();
-      setUser(data.data || data);
+      const userData = data.data || data;
+      setUser({
+        id: userData.id,
+        name: userData.name || 'User',
+        email: userData.email || 'No email registered',
+        phone: userData.phone || '',
+        address: userData.address || '',
+        role: userData.role || 'viewer',
+      });
     } catch (err: any) {
       showErrorToast(err.message);
     }
   };
 
   const handleThemeToggle = () => {
+    toggleTheme();
     const newDark = !isDark;
-    setIsDark(newDark);
-    document.documentElement.classList.toggle('dark', newDark);
-    localStorage.setItem('theme', newDark ? 'dark' : 'light');
-    window.dispatchEvent(new CustomEvent('themeChange', { detail: { isDark: newDark } }));
-    // Show success modal
     setModalTitle('Theme Updated');
     setModalMessage(`Switched to ${newDark ? 'Dark' : 'Light'} mode.`);
     setModalOpen(true);
   };
 
-  const handleCurrencyChange = async () => {
-    try {
-      setLoading(true);
-      const newCurrency = currency === 'TZS' ? 'USD' : 'TZS';
-      setCurrency(newCurrency);
-      localStorage.setItem('currency', newCurrency);
-      setModalTitle('Currency Updated');
-      setModalMessage(`Currency changed to ${newCurrency}.`);
-      setModalOpen(true);
-    } catch (error) {
-      showErrorToast('Failed to update currency');
-    } finally {
-      setLoading(false);
-    }
+  const handleCurrencyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newCurrency = e.target.value;
+    setSelectedCurrency(newCurrency);
+    setCurrency(newCurrency);
+    localStorage.setItem('currency', newCurrency);
+    window.dispatchEvent(new CustomEvent('currencyChanged', { detail: { currency: newCurrency } }));
+    const symbol = symbols[newCurrency] || newCurrency;
+    setModalTitle('Currency Updated');
+    setModalMessage(`Currency changed to ${newCurrency} (${symbol})`);
+    setModalOpen(true);
   };
 
   const handleModalClose = () => {
     setModalOpen(false);
   };
+
+  const currencies = [
+    { code: 'TZS', name: 'Tanzanian Shilling', symbol: 'TSh' },
+    { code: 'USD', name: 'US Dollar', symbol: '$' },
+    { code: 'EUR', name: 'Euro', symbol: '€' },
+    { code: 'GBP', name: 'British Pound', symbol: '£' },
+    { code: 'KES', name: 'Kenyan Shilling', symbol: 'KSh' },
+    { code: 'UGX', name: 'Ugandan Shilling', symbol: 'USh' },
+  ];
 
   const settingsSections = [
     {
@@ -104,13 +108,6 @@ export default function SettingsPage() {
       description: `Currently in ${isDark ? 'Dark' : 'Light'} mode`,
       action: handleThemeToggle,
       actionLabel: isDark ? 'Switch to Light' : 'Switch to Dark',
-    },
-    {
-      title: 'Currency',
-      icon: CreditCardIcon,
-      description: `Current currency: ${currency}`,
-      action: handleCurrencyChange,
-      actionLabel: `Switch to ${currency === 'TZS' ? 'USD' : 'TZS'}`,
     },
     {
       title: 'Profile',
@@ -156,13 +153,45 @@ export default function SettingsPage() {
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
               <UserIcon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 dark:text-blue-400" />
             </div>
-            <div className="min-w-0">
-              <p className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base truncate">{user.name || 'User'}</p>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 truncate">{user.email || 'No email'}</p>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base truncate">{user.name}</p>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
+              {user.role && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 mt-1">
+                  {user.role}
+                </span>
+              )}
             </div>
           </div>
         </div>
       )}
+
+      <div className="bg-white dark:!bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+        <div className="flex items-start gap-3">
+          <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex-shrink-0">
+            <CreditCardIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base">Currency</h3>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Select your preferred currency</p>
+            <div className="mt-3">
+              <select
+                value={selectedCurrency}
+                onChange={handleCurrencyChange}
+                className="w-full sm:w-64 px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                disabled={loading}
+              >
+                {currencies.map((curr) => (
+                  <option key={curr.code} value={curr.code}>
+                    {curr.code} - {curr.name} ({curr.symbol})
+                  </option>
+                ))}
+              </select>
+              {loading && <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Loading rates...</p>}
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3 md:gap-4">
         {settingsSections.map((section) => {
@@ -181,8 +210,7 @@ export default function SettingsPage() {
                 </div>
                 <button
                   onClick={section.action}
-                  disabled={loading}
-                  className="px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 whitespace-nowrap flex-shrink-0"
+                  className="px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition whitespace-nowrap flex-shrink-0"
                 >
                   {section.actionLabel}
                 </button>
@@ -192,7 +220,6 @@ export default function SettingsPage() {
         })}
       </div>
 
-      {/* Success Modal */}
       <SuccessModal
         isOpen={modalOpen}
         onClose={handleModalClose}

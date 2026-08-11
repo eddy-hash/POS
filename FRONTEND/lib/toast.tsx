@@ -1,138 +1,97 @@
 import toast from 'react-hot-toast';
 
-// ------------------------------------------------------------------
-// Types
-// ------------------------------------------------------------------
-type ToastContentProps = {
-  message: React.ReactNode;      // ← now accepts JSX, not just string
-  subMessage?: React.ReactNode;  // ← also accepts JSX
-  type?: 'success' | 'error' | 'info' | 'welcome';
+type ToastType = 'success' | 'error' | 'info' | 'warning' | 'logout';
+
+const Icons = {
+  success: (
+    <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+    </svg>
+  ),
+  error: (
+    <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  ),
+  info: (
+    <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
+  logout: (
+    <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+    </svg>
+  ),
 };
 
-// ------------------------------------------------------------------
-// Toast Content Component
-// ------------------------------------------------------------------
-const ToastContent = ({
-  message,
-  subMessage,
-  type = 'success'
-}: ToastContentProps) => {
-  // ─── Icons ───────────────────────────────────────────
-  const getIcon = () => {
-    switch (type) {
-      case 'success':
-      case 'welcome':
-        return (
-          <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
-            <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-        );
-      case 'error':
-        return (
-          <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
-            <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </div>
-        );
-      case 'info':
-        return (
-          <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm">
-            <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
+function ToastContent({ message, subMessage, type, id }: any) {
+  const icon = Icons[type as keyof typeof Icons] || Icons.info;
 
-  // ─── Background colors ──────────────────────────────
-  const getBgColor = () => {
-    switch (type) {
-      case 'success': return 'bg-emerald-600 dark:bg-emerald-700';
-      case 'welcome': return 'bg-blue-600 dark:bg-blue-700';
-      case 'error':   return 'bg-red-600 dark:bg-red-700';
-      case 'info':    return 'bg-slate-600 dark:bg-slate-700';
-      default:        return 'bg-blue-600 dark:bg-blue-700';
-    }
-  };
-
-  // ─── Render ──────────────────────────────────────────
   return (
     <div
-      className={`
-        flex items-center gap-2 sm:gap-4
-        ${getBgColor()}
-        rounded-2xl shadow-2xl
-        px-3 py-2 sm:px-5 sm:py-4
-        max-w-[90%] sm:max-w-sm md:max-w-md
-        w-auto
-        text-white
-        transition-all duration-200
-        hover:shadow-xl
-        cursor-pointer
-        mx-auto
-      `}
-      onClick={() => toast.dismiss()}
+      className="flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-white min-w-[200px] max-w-md"
+      style={{ backgroundColor: '#3B82F6' }}
     >
-      {getIcon()}
-      <div className="flex-1 min-w-0 text-center">
-        <p className="text-sm sm:text-base font-semibold leading-tight">{message}</p>
-        {subMessage && (
-          <p className="text-xs sm:text-sm text-white/80 mt-0.5 leading-tight">{subMessage}</p>
-        )}
+      <div className="flex-shrink-0">{icon}</div>
+      <div className="flex-1">
+        <p className="text-sm font-medium">{message}</p>
+        {subMessage && <p className="text-xs text-white/80 mt-0.5">{subMessage}</p>}
       </div>
+      <button
+        onClick={() => toast.dismiss(id)}
+        className="flex-shrink-0 p-1 rounded-full hover:bg-white/20 transition"
+      >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
     </div>
   );
-};
+}
 
-// ------------------------------------------------------------------
-// Public Toast Functions
-// ------------------------------------------------------------------
-export const showSuccessToast = (message: React.ReactNode, subMessage?: React.ReactNode): void => {
+// Simple toast functions - all blue background
+export const showSuccessToast = (message: string, subMessage?: string) => {
   toast.dismiss();
   toast.custom(
-    () => <ToastContent message={message} subMessage={subMessage} type="success" />,
-    { duration: 3500, position: 'bottom-center' }
-  );
-};
-
-export const showWelcomeToast = (message: React.ReactNode, subMessage?: React.ReactNode): void => {
-  toast.dismiss();
-  toast.custom(
-    () => <ToastContent message={message} subMessage={subMessage} type="welcome" />,
-    { duration: 3500, position: 'bottom-center' }
-  );
-};
-
-export const showInfoToast = (message: React.ReactNode, subMessage?: React.ReactNode): void => {
-  toast.dismiss();
-  toast.custom(
-    () => <ToastContent message={message} subMessage={subMessage} type="info" />,
+    (t) => <ToastContent message={message} subMessage={subMessage} type="success" id={t.id} />,
     { duration: 3000, position: 'bottom-center' }
   );
 };
 
-export const showErrorToast = (message: React.ReactNode, subMessage?: React.ReactNode): void => {
+export const showErrorToast = (message: string, subMessage?: string) => {
   toast.dismiss();
   toast.custom(
-    () => <ToastContent message={message} subMessage={subMessage} type="error" />,
-    { duration: 4500, position: 'bottom-center' }
+    (t) => <ToastContent message={message} subMessage={subMessage} type="error" id={t.id} />,
+    { duration: 3000, position: 'bottom-center' }
   );
 };
 
-// ------------------------------------------------------------------
-// Helper for "Welcome back, [username]!"
-// ------------------------------------------------------------------
-export const showWelcomeBackToast = (username: string): void => {
-  showWelcomeToast(
-    <>
-      Welcome back, <span className="font-bold underline decoration-white/30">{username}</span>!
-    </>,
-    "We're so glad to see you!"
+export const showInfoToast = (message: string, subMessage?: string) => {
+  toast.dismiss();
+  toast.custom(
+    (t) => <ToastContent message={message} subMessage={subMessage} type="info" id={t.id} />,
+    { duration: 3000, position: 'bottom-center' }
   );
+};
+
+export const showWarningToast = (message: string, subMessage?: string) => {
+  toast.dismiss();
+  toast.custom(
+    (t) => <ToastContent message={message} subMessage={subMessage} type="warning" id={t.id} />,
+    { duration: 3000, position: 'bottom-center' }
+  );
+};
+
+export const showLogoutToast = (message: string, subMessage?: string) => {
+  toast.dismiss();
+  toast.custom(
+    (t) => <ToastContent message={message} subMessage={subMessage} type="logout" id={t.id} />,
+    { duration: 1000, position: 'bottom-center' }
+  );
+};
+
+// Simple welcome back
+export const showWelcomeBackToast = (username: string) => {
+  showSuccessToast(`Welcome back, ${username}!`, 'Good to see you');
 };

@@ -17,6 +17,7 @@ import {
   TruckIcon,
   CreditCardIcon,
 } from "@heroicons/react/24/outline";
+import { showWelcomeToast } from "@/lib/toast";
 
 const menuItems = [
   { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
@@ -57,11 +58,26 @@ export default function Sidebar({
   };
 
   const handleLogout = () => {
+    // ✅ Show logout toast before clearing
+    const user = localStorage.getItem('user');
+    let username = 'User';
+    try {
+      const userData = user ? JSON.parse(user) : null;
+      username = userData?.name || 'User';
+    } catch (e) {
+      // ignore
+    }
+    showWelcomeToast(`👋 Goodbye, ${username}!`, 'You have been logged out successfully.');
+    
+    // Clear storage
     localStorage.removeItem("access_token");
     localStorage.removeItem("user");
     localStorage.removeItem("remembered_email");
     localStorage.removeItem("remember_me");
-    router.push("/");
+    
+    setTimeout(() => {
+      router.push("/");
+    }, 500);
   };
 
   return (
