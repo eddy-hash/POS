@@ -1,5 +1,6 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne, JoinColumn } from 'typeorm';
 import { PasswordHistory } from './password-history.entity';
+import { Role } from './role.entity';
 
 @Entity('users')
 export class User {
@@ -15,6 +16,13 @@ export class User {
   @Column()
   name: string;
 
+  @Column({ name: 'role_id', nullable: true })
+  role_id: number;
+
+  @ManyToOne(() => Role)
+  @JoinColumn({ name: 'role_id' })
+  role: Role;
+
   @Column({ nullable: true })
   phone: string;
 
@@ -26,6 +34,15 @@ export class User {
 
   @Column({ name: 'last_login', nullable: true })
   lastLogin: Date;
+
+  @Column({ name: 'failed_login_attempts', default: 0 })
+  failedLoginAttempts: number;
+
+  @Column({ name: 'is_locked', default: false })
+  isLocked: boolean;
+
+  @Column({ name: 'locked_until', nullable: true })
+  lockedUntil: Date;
 
   @Column({ type: 'jsonb', nullable: true, default: {} })
   preferences: any;

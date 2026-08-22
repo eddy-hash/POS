@@ -1,27 +1,59 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request, Query } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request, Query, ForbiddenException, Logger } from '@nestjs/common';
 import { ProductsService } from './products.service';
-import { Permissions } from '../auth/decorators/permissions.decorator';
-import { Permission } from '../auth/enums/roles.enum';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RBACGuard } from '../auth/guards/rbac.guard';
-import { Public } from '../auth/decorators/permissions.decorator';
 
 @Controller('products')
-@UseGuards(RBACGuard)
+@UseGuards(JwtAuthGuard, RBACGuard)
 export class ProductsController {
+  private readonly logger = new Logger(ProductsController.name);
+
   constructor(private productsService: ProductsService) {}
 
+  private checkPermission(user: any, action: string) {
+    // ✅ DEBUG: Log the entire user object
+    this.logger.log(`🔍 Full user object: ${JSON.stringify(user, null, 2)}`);
+    this.logger.log(`🔍 user.role_id: ${user?.role_id}`);
+    this.logger.log(`🔍 user.isAdmin: ${user?.isAdmin}`);
+    this.logger.log(`🔍 Action: ${action}`);
+    
+    // ✅ If user is admin (role_id = 1 or isAdmin = true), allow everything
+    if (user?.role_id === 1 || user?.isAdmin === true) {
+      this.logger.log(`✅ Admin user: ${user?.email} - All permissions granted`);
+      return;
+    }
+
+    // role_id: 1=admin, 2=manager, 3=cashier, 4=viewer
+    const rolePermissions = {
+      2: ['read', 'create', 'update'],           // Manager
+      3: ['read'],                               // Cashier
+      4: ['read'],                               // Viewer
+    };
+
+    const userRole = user?.role_id || 4;
+    const permissions = rolePermissions[userRole] || ['read'];
+    
+    this.logger.log(`🔍 User role: ${userRole}, permissions: ${permissions}`);
+    
+    if (!permissions.includes(action)) {
+      this.logger.warn(`❌ Permission denied: ${action} for user: ${user?.email} (role_id: ${userRole})`);
+      throw new ForbiddenException('You do not have permission to perform this action');
+    }
+    
+    this.logger.log(`✅ Permission granted: ${action} for user: ${user?.email}`);
+  }
+
   @Get()
-  @Permissions(Permission.PRODUCT_READ)
   async findAll(
     @Request() req,
     @Query('currency') currency?: string,
   ) {
+    this.checkPermission(req.user, 'read');
     const displayCurrency = currency || 'TZS';
-    return this.productsService.findAll(displayCurrency);
+    return this.productsService.findAll(req.user.id, displayCurrency);
   }
 
   @Get(':id')
-  @Permissions(Permission.PRODUCT_READ)
   async findOne(
     @Param('id') id: string,
     @Query('currency') currency?: string,
@@ -31,20 +63,48 @@ export class ProductsController {
   }
 
   @Post()
-  @Permissions(Permission.PRODUCT_CREATE)
-  async create(@Body() createProductDto: any) {
-    return this.productsService.create(createProductDto);
+  async create(
+    @Body() createProductDto: any,
+    @Request() req,
+  ) {
+    this.logger.log(`📝 Create product request from user: ${req.user?.email}`);
+    
+    // ✅ DEBUG: Log req.user
+    this.logger.log(`📊 req.user: ${JSON.stringify(req.user, null, 2)}`);
+    
+    this.checkPermission(req.user, 'create');
+    
+    const product = await this.productsService.create(createProductDto, req.user.id);
+    return {
+      success: true,
+      data: product,
+    };
   }
 
   @Put(':id')
-  @Permissions(Permission.PRODUCT_UPDATE)
-  async update(@Param('id') id: string, @Body() updateProductDto: any) {
-    return this.productsService.update(+id, updateProductDto);
+  async update(
+    @Param('id') id: string,
+    @Body() updateProductDto: any,
+    @Request() req,
+  ) {
+    this.checkPermission(req.user, 'update');
+    const product = await this.productsService.update(+id, updateProductDto);
+    return {
+      success: true,
+      data: product,
+    };
   }
 
   @Delete(':id')
-  @Permissions(Permission.PRODUCT_DELETE)
-  async remove(@Param('id') id: string) {
-    return this.productsService.remove(+id);
+  async remove(
+    @Param('id') id: string,
+    @Request() req,
+  ) {
+    this.checkPermission(req.user, 'delete');
+    await this.productsService.remove(+id);
+    return {
+      success: true,
+      message: 'Product deleted successfully',
+    };
   }
 }

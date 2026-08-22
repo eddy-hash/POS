@@ -19,10 +19,7 @@ export class UsersService {
   ) {}
 
   async findById(id: number): Promise<User> {
-    const user = await this.userRepository.findOne({
-      where: { id },
-      relations: ['role'],
-    });
+    const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -49,7 +46,7 @@ export class UsersService {
       .getOne();
   }
 
-  async create(userData: { email: string; password: string; name: string; role_id?: number }): Promise<User> {
+  async create(userData: { email: string; password: string; name: string }): Promise<User> {
     const existing = await this.findByEmail(userData.email);
     if (existing) {
       throw new ConflictException('User already exists');
@@ -62,7 +59,6 @@ export class UsersService {
       email: userData.email,
       password: hashedPassword,
       name: userData.name,
-      role_id: userData.role_id || 4,
       preferences: {},
       failedLoginAttempts: 0,
       isLocked: false,
@@ -204,6 +200,7 @@ export class UsersService {
     return user.preferences.notifications;
   }
 
+  // ✅ LOCKOUT METHODS (ONLY ONCE!)
   async incrementFailedLoginAttempts(userId: number): Promise<void> {
     const user = await this.findById(userId);
     if (!user) return;
@@ -282,3 +279,28 @@ export class UsersService {
     });
   }
 }
+
+  // ✅ Update create method to include role_id
+  async create(userData: { email: string; password: string; name: string; role_id?: number }) {
+    const existing = await this.findByEmail(userData.email);
+    if (existing) {
+      throw new ConflictException('User already exists');
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(userData.password, salt);
+
+    const user = this.userRepository.create({
+      email: userData.email,
+      password: hashedPassword,
+      name: userData.name,
+      role_id: userData.role_id || 4, // Default to viewer (role_id = 4)
+      preferences: {},
+      failedLoginAttempts: 0,
+      isLocked: false,
+    });
+
+    const savedUser = await this.userRepository.save(user);
+    await this.savePasswordHistory(savedUser.id, hashedPassword);
+    return savedUser;
+  }

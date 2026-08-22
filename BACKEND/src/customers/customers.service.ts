@@ -18,8 +18,6 @@ export class CustomersService {
   ) {}
 
   async create(createCustomerDto: any, userId: number): Promise<Customer> {
-    this.logger.log('Creating customer...');
-
     const customer = new Customer();
     customer.userId = userId;
     customer.name = createCustomerDto.name || '';
@@ -31,25 +29,27 @@ export class CustomersService {
     return savedCustomer;
   }
 
-  async findAll(userId: number): Promise<any[]> {
+  async findAll(userId: number, displayCurrency: string = 'TZS'): Promise<any[]> {
     const customers = await this.customerRepository.find({
       where: { userId },
       order: { createdAt: 'DESC' },
     });
 
-    // Get total spent for each customer by name (since Sale uses customerName)
     const customersWithSpent = await Promise.all(
       customers.map(async (customer) => {
         const sales = await this.saleRepository.find({
           where: { customerName: customer.name },
         });
         const totalSpent = sales.reduce((sum, s) => sum + Number(s.netAmount || 0), 0);
+        const convertedTotal = this.currencyService.convert(totalSpent, 'TZS', displayCurrency);
 
         return {
           ...customer,
           totalSpent,
-          formattedTotalSpent: this.currencyService.formatCurrencyFull(totalSpent, 'TZS'),
-          formattedTotalSpentShort: this.currencyService.formatCurrency(totalSpent, 'TZS', true),
+          formattedTotalSpent: this.currencyService.formatCurrencyFull(convertedTotal, displayCurrency),
+          formattedTotalSpentShort: this.currencyService.formatCurrency(convertedTotal, displayCurrency, true),
+          displayCurrency,
+          totalSpentTZS: totalSpent,
         };
       }),
     );
@@ -57,7 +57,7 @@ export class CustomersService {
     return customersWithSpent;
   }
 
-  async findOne(id: number): Promise<any> {
+  async findOne(id: number, displayCurrency: string = 'TZS'): Promise<any> {
     const customer = await this.customerRepository.findOne({ where: { id } });
 
     if (!customer) {
@@ -68,12 +68,15 @@ export class CustomersService {
       where: { customerName: customer.name },
     });
     const totalSpent = sales.reduce((sum, s) => sum + Number(s.netAmount || 0), 0);
+    const convertedTotal = this.currencyService.convert(totalSpent, 'TZS', displayCurrency);
 
     return {
       ...customer,
       totalSpent,
-      formattedTotalSpent: this.currencyService.formatCurrencyFull(totalSpent, 'TZS'),
-      formattedTotalSpentShort: this.currencyService.formatCurrency(totalSpent, 'TZS', true),
+      formattedTotalSpent: this.currencyService.formatCurrencyFull(convertedTotal, displayCurrency),
+      formattedTotalSpentShort: this.currencyService.formatCurrency(convertedTotal, displayCurrency, true),
+      displayCurrency,
+      totalSpentTZS: totalSpent,
     };
   }
 

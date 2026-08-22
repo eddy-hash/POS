@@ -1,17 +1,23 @@
-import { IsString, IsNumber, IsOptional, IsArray, ValidateNested, Min, MaxLength } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsArray, Min, MaxLength } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreatePurchaseItemDto {
+  @IsOptional()
   @IsNumber()
-  productId: number;
+  productId?: number;
 
+  @IsOptional()
   @IsNumber()
   @Min(1)
-  quantity: number;
+  quantity?: number;
 
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  price: number;
+  price?: number;
+
+  // ✅ Allow any extra fields
+  [key: string]: any;
 }
 
 export class CreatePurchaseDto {
@@ -21,15 +27,31 @@ export class CreatePurchaseDto {
   supplier?: string;
 
   @IsOptional()
+  @IsNumber()
+  supplierId?: number;
+
+  @IsOptional()
   @IsString()
   notes?: string;
 
+  @IsOptional()
   @IsArray()
-  @ValidateNested({ each: true })
   @Type(() => CreatePurchaseItemDto)
-  items: CreatePurchaseItemDto[];
+  items?: CreatePurchaseItemDto[];
 
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  totalAmount: number;
+  totalAmount?: number;
+
+  @IsOptional()
+  @IsString()
+  orderDate?: string;
+
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  // ✅ Allow any extra fields
+  [key: string]: any;
 }

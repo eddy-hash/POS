@@ -2,17 +2,21 @@ import { Module, Global } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UsersModule } from '../users/users.module';
 import { RBACGuard } from './guards/rbac.guard';
+import { ResetToken } from './entities/reset-token.entity';
+import { User } from '../users/entities/user.entity';
 
 @Global()
 @Module({
   imports: [
     UsersModule,
     PassportModule,
+    TypeOrmModule.forFeature([User, ResetToken]), // ✅ Added ResetToken
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

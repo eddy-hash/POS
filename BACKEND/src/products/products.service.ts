@@ -14,7 +14,7 @@ export class ProductsService {
     private currencyService: CurrencyService,
   ) {}
 
-  async create(createProductDto: any): Promise<Product> {
+  async create(createProductDto: any, userId: number): Promise<Product> {
     this.logger.log('Creating product...');
 
     if (!createProductDto.sku) {
@@ -23,23 +23,32 @@ export class ProductsService {
 
     createProductDto.quantity = createProductDto.quantity || 0;
     createProductDto.isActive = true;
+    createProductDto.userId = userId;
 
+    // ✅ Simple approach: create and save
     const product = new Product();
     Object.assign(product, createProductDto);
     
     const savedProduct = await this.productRepository.save(product);
+    this.logger.log(`✅ Product created: ${savedProduct.name} (${savedProduct.sku})`);
     return savedProduct;
   }
 
-  async findAll(displayCurrency: string = 'TZS'): Promise<any[]> {
-    const products = await this.productRepository.find({
-      where: { isActive: true },
-      relations: { category: true },
-    });
+  async findAll(userId: number, displayCurrency: string = 'TZS'): Promise<any[]> {
+    this.logger.log(`📦 Fetching products for user ${userId} in ${displayCurrency}`);
+    
+    const products = await this.productRepository
+      .createQueryBuilder('product')
+      .where('product.userId = :userId', { userId })
+      .andWhere('product.isActive = :isActive', { isActive: true })
+      .leftJoinAndSelect('product.category', 'category')
+      .getMany();
+
+    this.logger.log(`📦 Found ${products.length} products for user ${userId}`);
 
     return products.map((product) => {
-      const price = product.price || 0;
-      const costPrice = product.costPrice || 0;
+      const price = Number(product.price) || 0;
+      const costPrice = Number(product.costPrice) || 0;
       
       const convertedPrice = this.currencyService.convert(price, 'TZS', displayCurrency);
       const convertedCostPrice = this.currencyService.convert(costPrice, 'TZS', displayCurrency);
@@ -49,8 +58,6 @@ export class ProductsService {
         formattedPrice: this.currencyService.formatCurrencyFull(convertedPrice, displayCurrency),
         formattedPriceShort: this.currencyService.formatCurrency(convertedPrice, displayCurrency, true),
         formattedCostPrice: this.currencyService.formatCurrencyFull(convertedCostPrice, displayCurrency),
-        priceTZS: price,
-        costPriceTZS: costPrice,
         displayCurrency,
       };
     });
@@ -66,8 +73,8 @@ export class ProductsService {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
-    const price = product.price || 0;
-    const costPrice = product.costPrice || 0;
+    const price = Number(product.price) || 0;
+    const costPrice = Number(product.costPrice) || 0;
     
     const convertedPrice = this.currencyService.convert(price, 'TZS', displayCurrency);
     const convertedCostPrice = this.currencyService.convert(costPrice, 'TZS', displayCurrency);
@@ -77,8 +84,6 @@ export class ProductsService {
       formattedPrice: this.currencyService.formatCurrencyFull(convertedPrice, displayCurrency),
       formattedPriceShort: this.currencyService.formatCurrency(convertedPrice, displayCurrency, true),
       formattedCostPrice: this.currencyService.formatCurrencyFull(convertedCostPrice, displayCurrency),
-      priceTZS: price,
-      costPriceTZS: costPrice,
       displayCurrency,
     };
   }

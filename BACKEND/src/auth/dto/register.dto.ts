@@ -15,7 +15,7 @@ export class RegisterDto {
   password: string;
 
   @IsNotEmpty({ message: 'Name is required' })
-  @MinLength(2, { message: 'Name must be at least 2 characters' })
+  @MinLength(10, { message: 'Name must be at least 10 characters' })
   @MaxLength(100, { message: 'Name is too long' })
   @Matches(/^[a-zA-Z\s]*$/, { message: 'Name can only contain letters and spaces' })
   name: string;

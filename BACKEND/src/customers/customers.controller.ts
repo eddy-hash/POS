@@ -1,11 +1,12 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request, Query } from '@nestjs/common';
 import { CustomersService } from './customers.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RBACGuard } from '../auth/guards/rbac.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { Permission } from '../auth/enums/roles.enum';
-import { RBACGuard } from '../auth/guards/rbac.guard';
 
 @Controller('customers')
-@UseGuards(RBACGuard)
+@UseGuards(JwtAuthGuard, RBACGuard)
 export class CustomersController {
   constructor(private customersService: CustomersService) {}
 

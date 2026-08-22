@@ -21,8 +21,20 @@ export class PurchasesService {
   async create(createPurchaseDto: CreatePurchaseDto, userId: number): Promise<PurchaseOrder> {
     this.logger.log('Creating purchase order...');
 
-    const count = await this.purchaseOrderRepository.count();
-    const orderNumber = `PO-${String(count + 1).padStart(4, '0')}`;
+    const lastOrder = await this.purchaseOrderRepository
+      .createQueryBuilder('order')
+      .orderBy('order.orderNumber', 'DESC')
+      .getOne();
+
+    let orderNumber = 'PO-0001';
+    if (lastOrder && lastOrder.orderNumber) {
+      const match = lastOrder.orderNumber.match(/PO-(\d+)/);
+      if (match) {
+        const lastNum = parseInt(match[1], 10);
+        const nextNum = lastNum + 1;
+        orderNumber = `PO-${String(nextNum).padStart(4, '0')}`;
+      }
+    }
 
     const { items, supplier, notes, totalAmount } = createPurchaseDto;
 
@@ -60,31 +72,44 @@ export class PurchasesService {
     return this.findOne(savedOrder.id);
   }
 
-  async findAll(userId: number): Promise<any[]> {
+  async findAll(userId: number, displayCurrency: string = 'TZS'): Promise<any[]> {
     const orders = await this.purchaseOrderRepository.find({
       where: { userId },
       relations: { items: true },
       order: { orderDate: 'DESC' },
     });
 
-    return orders.map(order => ({
-      ...order,
-      formattedTotal: this.currencyService.formatCurrencyFull(order.totalAmount, 'TZS'),
-      formattedTotalShort: this.currencyService.formatCurrency(order.totalAmount, 'TZS', true),
-    }));
+    return orders.map(order => {
+      const totalAmount = parseFloat(order.totalAmount as any) || 0;
+      const convertedTotal = this.currencyService.convert(totalAmount, 'TZS', displayCurrency);
+      
+      return {
+        ...order,
+        formattedTotal: this.currencyService.formatCurrencyFull(convertedTotal, displayCurrency),
+        formattedTotalShort: this.currencyService.formatCurrency(convertedTotal, displayCurrency, true),
+        displayCurrency,
+        totalTZS: totalAmount,
+      };
+    });
   }
 
-  async findOne(id: number): Promise<any> {
+  async findOne(id: number, displayCurrency: string = 'TZS'): Promise<any> {
     const order = await this.purchaseOrderRepository.findOne({
       where: { id },
       relations: { items: true },
     });
+    
     if (!order) throw new NotFoundException(`Purchase order with ID ${id} not found`);
+
+    const totalAmount = parseFloat(order.totalAmount as any) || 0;
+    const convertedTotal = this.currencyService.convert(totalAmount, 'TZS', displayCurrency);
 
     return {
       ...order,
-      formattedTotal: this.currencyService.formatCurrencyFull(order.totalAmount, 'TZS'),
-      formattedTotalShort: this.currencyService.formatCurrency(order.totalAmount, 'TZS', true),
+      formattedTotal: this.currencyService.formatCurrencyFull(convertedTotal, displayCurrency),
+      formattedTotalShort: this.currencyService.formatCurrency(convertedTotal, displayCurrency, true),
+      displayCurrency,
+      totalTZS: totalAmount,
     };
   }
 

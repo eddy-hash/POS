@@ -15,8 +15,6 @@ export class ExpensesService {
   ) {}
 
   async create(createExpenseDto: any, userId: number): Promise<Expense> {
-    this.logger.log('Creating expense...');
-
     const expense = new Expense();
     expense.userId = userId;
     expense.category = createExpenseDto.category || 'Uncategorized';
@@ -29,30 +27,42 @@ export class ExpensesService {
     return savedExpense;
   }
 
-  async findAll(userId: number): Promise<any[]> {
+  async findAll(userId: number, displayCurrency: string = 'TZS'): Promise<any[]> {
     const expenses = await this.expenseRepository.find({
       where: { userId },
       order: { expenseDate: 'DESC' },
     });
 
-    return expenses.map((expense) => ({
-      ...expense,
-      formattedAmount: this.currencyService.formatCurrencyFull(expense.amount, 'TZS'),
-      formattedAmountShort: this.currencyService.formatCurrency(expense.amount, 'TZS', true),
-    }));
+    return expenses.map((expense) => {
+      const amount = expense.amount || 0;
+      const convertedAmount = this.currencyService.convert(amount, 'TZS', displayCurrency);
+      
+      return {
+        ...expense,
+        formattedAmount: this.currencyService.formatCurrencyFull(convertedAmount, displayCurrency),
+        formattedAmountShort: this.currencyService.formatCurrency(convertedAmount, displayCurrency, true),
+        displayCurrency,
+        amountTZS: amount,
+      };
+    });
   }
 
-  async findOne(id: number): Promise<any> {
+  async findOne(id: number, displayCurrency: string = 'TZS'): Promise<any> {
     const expense = await this.expenseRepository.findOne({ where: { id } });
 
     if (!expense) {
       throw new NotFoundException(`Expense with ID ${id} not found`);
     }
 
+    const amount = expense.amount || 0;
+    const convertedAmount = this.currencyService.convert(amount, 'TZS', displayCurrency);
+
     return {
       ...expense,
-      formattedAmount: this.currencyService.formatCurrencyFull(expense.amount, 'TZS'),
-      formattedAmountShort: this.currencyService.formatCurrency(expense.amount, 'TZS', true),
+      formattedAmount: this.currencyService.formatCurrencyFull(convertedAmount, displayCurrency),
+      formattedAmountShort: this.currencyService.formatCurrency(convertedAmount, displayCurrency, true),
+      displayCurrency,
+      amountTZS: amount,
     };
   }
 

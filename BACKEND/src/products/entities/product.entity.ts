@@ -1,5 +1,6 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
-import { Category } from './category.entity';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Category } from '../../categories/entities/category.entity';
+import { User } from '../../users/entities/user.entity';
 
 @Entity('products')
 export class Product {
@@ -9,37 +10,44 @@ export class Product {
   @Column()
   name: string;
 
-  @Column({ nullable: true })
+  @Column({ unique: true })
   sku: string;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2 })
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   price: number;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2, name: 'cost_price', nullable: true })
+  @Column({ name: 'cost_price', type: 'decimal', precision: 10, scale: 2, default: 0 })
   costPrice: number;
 
-  @Column({ type: 'int', default: 0 })
+  @Column({ default: 0 })
   quantity: number;
-
-  @Column({ name: 'category_id', nullable: true })
-  categoryId: number;
 
   @Column({ nullable: true })
   description: string;
 
-  @Column({ nullable: true })
-  image: string;
+  @Column({ name: 'category_id', nullable: true })
+  categoryId: number;
+
+  @ManyToOne(() => Category)
+  @JoinColumn({ name: 'category_id' })
+  category: Category;
+
+  @Column({ name: 'user_id' })
+  userId: number;
+
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'user_id' })
+  user: User;
 
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
+
+  @Column({ name: 'image_url', nullable: true })
+  imageUrl: string;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
-
-  @ManyToOne(() => Category, { nullable: true })
-  @JoinColumn({ name: 'category_id' })
-  category: Category;
 }

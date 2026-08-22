@@ -1,9 +1,17 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { User } from '../../users/entities/user.entity';
 
 @Entity('customers')
 export class Customer {
   @PrimaryGeneratedColumn()
   id: number;
+
+  @Column({ name: 'user_id' })
+  userId: number;
+
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'user_id' })
+  user: User;
 
   @Column()
   name: string;
@@ -16,12 +24,6 @@ export class Customer {
 
   @Column({ nullable: true })
   address: string;
-
-  @Column({ type: 'decimal', precision: 15, scale: 2, name: 'total_spent', default: 0 })
-  totalSpent: number;
-
-  @Column({ name: 'user_id' })
-  userId: number;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

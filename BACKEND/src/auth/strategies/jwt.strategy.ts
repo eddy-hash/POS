@@ -18,10 +18,30 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
+    console.log('📊 JWT Payload:', payload);
+    
+    // Get the full user from database
     const user = await this.usersService.findById(payload.sub);
     if (!user) {
-      throw new UnauthorizedException();
+      throw new UnauthorizedException('User not found');
     }
-    return { id: user.id, email: user.email, name: user.name };
+
+    console.log('📊 User from DB:', {
+      id: user.id,
+      email: user.email,
+      role_id: user.role_id,
+    });
+
+    // ✅ Return ALL user data needed for authorization
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role_id: user.role_id || 4, // Default to viewer if not set
+      isAdmin: user.role_id === 1,
+      isActive: user.isActive,
+      isLocked: user.isLocked,
+      failedLoginAttempts: user.failedLoginAttempts,
+    };
   }
 }

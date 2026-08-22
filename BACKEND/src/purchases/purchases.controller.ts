@@ -1,11 +1,13 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, UseGuards, Request, Query } from '@nestjs/common';
 import { PurchasesService } from './purchases.service';
+import { CreatePurchaseDto } from './dto/create-purchase.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RBACGuard } from '../auth/guards/rbac.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { Permission } from '../auth/enums/roles.enum';
-import { RBACGuard } from '../auth/guards/rbac.guard';
 
 @Controller('purchases')
-@UseGuards(RBACGuard)
+@UseGuards(JwtAuthGuard, RBACGuard)
 export class PurchasesController {
   constructor(private purchasesService: PurchasesService) {}
 
@@ -23,7 +25,7 @@ export class PurchasesController {
 
   @Post()
   @Permissions(Permission.PURCHASE_CREATE)
-  async create(@Body() createPurchaseDto: any, @Request() req) {
+  async create(@Body() createPurchaseDto: CreatePurchaseDto, @Request() req) {
     return this.purchasesService.create(createPurchaseDto, req.user.id);
   }
 

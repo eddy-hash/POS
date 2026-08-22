@@ -1,6 +1,6 @@
-import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import { ExceptionFilter, Catch, ArgumentsHost, HttpException, Logger } from '@nestjs/common';
 import { Request, Response } from 'express';
-import * as Sentry from '@sentry/nestjs';
+import * as Sentry from '@sentry/node';
 
 @Catch()
 export class SentryFilter implements ExceptionFilter {
@@ -11,34 +11,33 @@ export class SentryFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    const status = exception instanceof HttpException
-      ? exception.getStatus()
-      : HttpStatus.INTERNAL_SERVER_ERROR;
+    // Determine status and response body
+    const isHttp = exception instanceof HttpException;
+    const status = isHttp ? exception.getStatus() : 500;
+    const exceptionResponse = isHttp ? exception.getResponse() : {};
 
-    const message = exception instanceof Error
-      ? exception.message
-      : 'Internal server error';
-
-    if (exception instanceof Error) {
-      Sentry.captureException(exception, {
-        extra: {
-          url: request.url,
-          method: request.method,
-          ip: request.ip,
-          body: request.body,
-          query: request.query,
-          params: request.params,
-        },
-      });
-    }
-
-    this.logger.error(`Error: ${message}`, exception instanceof Error ? exception.stack : '');
-
-    response.status(status).json({
+    // Build the response body
+    const body: any = {
       statusCode: status,
-      message: message,
+      message: typeof exceptionResponse === 'string' ? exceptionResponse : (exceptionResponse as any)?.message || 'Internal server error',
       timestamp: new Date().toISOString(),
       path: request.url,
-    });
+    };
+
+    // Preserve field errors if present
+    if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
+      const errors = (exceptionResponse as any).errors;
+      if (errors) {
+        body.errors = errors;
+      }
+    }
+
+    // Log and send to Sentry only for 5xx errors
+    if (status >= 500) {
+      this.logger.error(exception);
+      Sentry.captureException(exception);
+    }
+
+    response.status(status).json(body);
   }
 }
