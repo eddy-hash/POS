@@ -1,0 +1,1171 @@
+import { Injectable, UnauthorizedException, ConflictException, NotFoundException, Logger, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
+import { Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { UsersService } from '../users/users.service';
+import { ResetToken } from './entities/reset-token.entity';
+import * as crypto from 'crypto';
+
+@Injectable()
+export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+  private readonly ADMIN_ROLE_ID = 1;
+  private readonly DEFAULT_ROLE_ID = 4;
+
+  constructor(
+    private usersService: UsersService,
+    private jwtService: JwtService,
+    @InjectRepository(ResetToken)
+    private resetTokenRepository: Repository<ResetToken>,
+  ) {}
+
+  async validateUser(email: string, password: string): Promise<any> {
+    this.logger.log(`Validating user: ${email}`);
+    
+    const user = await this.usersService.findByEmailWithPassword(email);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const isAdmin = user.role_id === this.ADMIN_ROLE_ID;
+    this.logger.log(` User found: ${user.id}, isAdmin: ${isAdmin}`);
+    this.logger.log(`Current failed attempts: ${user.failedLoginAttempts || 0}`);
+
+    const lockStatus = await this.usersService.isUserLocked(user.id);
+    if (lockStatus.locked) {
+      this.logger.warn(` User ${user.id} is locked: ${lockStatus.message}`);
+      throw new ForbiddenException(lockStatus.message);
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      this.logger.warn(`❌ Invalid password for user: ${user.id}`);
+      
+      await this.usersService.incrementFailedLoginAttempts(user.id);
+      
+      const newLockStatus = await this.usersService.isUserLocked(user.id);
+      if (newLockStatus.locked) {
+        this.logger.warn(` User ${user.id} has been locked after too many attempts`);
+        throw new ForbiddenException(newLockStatus.message);
+      }
+      
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    this.logger.log(` Valid password for user: ${user.id}, resetting attempts`);
+    await this.usersService.resetFailedLoginAttempts(user.id);
+    await this.usersService.updateProfile(user.id, { lastLogin: new Date() });
+
+    const { password: _, ...result } = user;
+    return { ...result, isAdmin };
+  }
+
+  async login(user: any) {
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+    const fullUser = await this.usersService.findById(user.id);
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+    const roleName = fullUser.role?.name || 'viewer';
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+    const isAdmin = fullUser.role_id === this.ADMIN_ROLE_ID;
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+    const payload = {
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+      email: fullUser.email,
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+      sub: fullUser.id,
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+      isAdmin,
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+      role_id: fullUser.role_id || this.DEFAULT_ROLE_ID,
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+    };
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+    this.logger.log(` Login payload: ${JSON.stringify(payload)}`);
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+    const userResponse = {
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+      id: fullUser.id,
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+      email: fullUser.email,
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+      name: fullUser.name,
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+      role_id: fullUser.role_id || this.DEFAULT_ROLE_ID,
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+      role: roleName,
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+      isAdmin,
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+    };
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+    this.logger.log(`🔍 FINAL user response: ${JSON.stringify(userResponse, null, 2)}`);
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+    return {
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+      access_token: this.jwtService.sign(payload),
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+      user: userResponse,
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+    };
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+  }
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log("🔄 Refreshing token...");
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) throw new UnauthorizedException("User not found");
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException("Invalid refresh token");
+      }
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === 1,
+        role_id: user.role_id || 4,
+      }, { expiresIn: "1h" });
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: "7d",
+        secret: process.env.JWT_REFRESH_SECRET || "refresh-secret-key",
+      });
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+  }
+
+  async register(registerDto: { email: string; password: string; name: string }) {
+    try {
+      const user = await this.usersService.create(registerDto);
+      const { password: _, ...result } = user;
+      return result;
+    } catch (error) {
+      if (error instanceof ConflictException) {
+        throw new ConflictException('User already exists');
+      }
+      throw error;
+    }
+  }
+
+  async getProfile(userId: number) {
+    const user = await this.usersService.findById(userId);
+    const { password: _, ...result } = user;
+    return result;
+  }
+
+  async updateProfile(userId: number, updateData: any) {
+    return this.usersService.updateProfile(userId, updateData);
+  }
+
+  async changePassword(userId: number, currentPassword: string, newPassword: string) {
+    return this.usersService.changePassword(userId, currentPassword, newPassword);
+  }
+
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    this.logger.log(` Password reset requested for: ${email}`);
+    
+    if (!email) {
+      throw new BadRequestException('Email is required');
+    }
+
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      return { message: 'If your email is registered, you will receive a reset link.' };
+    }
+
+    await this.resetTokenRepository.delete({ userId: user.id, isUsed: false });
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 1);
+
+    const resetToken = this.resetTokenRepository.create({
+      userId: user.id,
+      token,
+      expiresAt,
+      isUsed: false,
+    });
+    await this.resetTokenRepository.save(resetToken);
+
+    this.logger.log(` Reset token created for user ID: ${user.id}`);
+    
+
+    return { message: 'If your email is registered, you will receive a reset link.' };
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+    this.logger.log(' Password reset attempt with token');
+    
+    const resetToken = await this.resetTokenRepository.findOne({
+      where: { token, isUsed: false },
+      relations: { user: true },
+    });
+
+    if (!resetToken) {
+      throw new UnauthorizedException('Invalid or expired token');
+    }
+
+    if (new Date() > resetToken.expiresAt) {
+      throw new UnauthorizedException('Token has expired');
+    }
+
+    if (newPassword.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await this.usersService.updatePassword(resetToken.userId, hashedPassword);
+    await this.resetTokenRepository.update(resetToken.id, { isUsed: true });
+
+    this.logger.log(` Password reset successful for user ID: ${resetToken.userId}`);
+    return { message: 'Password has been reset successfully.' };
+  }
+}

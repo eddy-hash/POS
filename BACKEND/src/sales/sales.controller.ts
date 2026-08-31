@@ -12,14 +12,22 @@ export class SalesController {
 
   @Get()
   @Permissions(Permission.SALE_READ)
-  async findAll(@Request() req) {
-    return this.salesService.findAll(req.user.id);
+  async findAll(
+    @Request() req,
+    @Query('currency') currency?: string,
+  ) {
+    const displayCurrency = currency || 'TZS';
+    return this.salesService.findAll(req.user.id, displayCurrency);
   }
 
   @Get(':id')
   @Permissions(Permission.SALE_READ)
-  async findOne(@Param('id') id: string) {
-    return this.salesService.findOne(+id);
+  async findOne(
+    @Param('id') id: string,
+    @Query('currency') currency?: string,
+  ) {
+    const displayCurrency = currency || 'TZS';
+    return this.salesService.findOne(+id, displayCurrency);
   }
 
   @Post()

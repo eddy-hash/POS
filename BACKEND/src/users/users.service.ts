@@ -281,4 +281,13 @@ export class UsersService {
       order: { lockedUntil: 'DESC' },
     });
   }
+
+  // ✅ Refresh token methods
+  async updateRefreshToken(userId: number, refreshToken: string): Promise<void> {
+    await this.userRepository.update(userId, { refreshToken });
+  }
+
+  async clearRefreshToken(userId: number): Promise<void> {
+    await this.userRepository.update(userId, { refreshToken: null });
+  }
 }

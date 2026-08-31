@@ -7,7 +7,8 @@ import { Expense } from '../expenses/entities/expense.entity';
 import { Product } from '../products/entities/product.entity';
 import { Customer } from '../customers/entities/customer.entity';
 import { PurchaseOrder } from '../purchases/entities/purchase-order.entity';
-import { CurrencyService } from '../common/services/currency.service';
+import { CurrencyService } from '../currency/currency.service';
+
 
 @Module({
   imports: [

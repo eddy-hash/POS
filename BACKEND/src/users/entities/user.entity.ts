@@ -29,6 +29,9 @@ export class User {
   @Column({ nullable: true })
   address: string;
 
+  @Column({ nullable: true })
+  refreshToken: string;
+
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 

@@ -5,7 +5,7 @@ import { Sale } from './entities/sale.entity';
 import { SaleItem } from './entities/sale-item.entity';
 import { Product } from '../products/entities/product.entity';
 import { NotificationTriggersService } from '../notifications/notification-triggers.service';
-import { CurrencyService } from '../common/services/currency.service';
+import { CurrencyService } from '../currency/currency.service';
 
 @Injectable()
 export class SalesService {
@@ -51,7 +51,6 @@ export class SalesService {
     const discountAmount = parseFloat(saleData.discountAmount) || 0;
     const netAmount = totalAmount + taxAmount - discountAmount;
 
-    // Create sale object
     const sale = new Sale();
     sale.userId = userId;
     sale.saleNumber = saleNumber;
@@ -90,21 +89,27 @@ export class SalesService {
     return this.findOne(savedSale.id);
   }
 
-  async findAll(userId: number): Promise<any[]> {
+  // ✅ Updated with currency support
+  async findAll(userId: number, displayCurrency: string = 'TZS'): Promise<any[]> {
     const sales = await this.saleRepository.find({
       where: { userId },
       relations: { items: true },
       order: { saleDate: 'DESC' },
     });
 
-    return sales.map((sale) => ({
-      ...sale,
-      formattedTotal: this.currencyService.formatCurrencyFull(sale.netAmount || 0, 'TZS'),
-      formattedTotalShort: this.currencyService.formatCurrency(sale.netAmount || 0, 'TZS', true),
-    }));
+    return sales.map((sale) => {
+      const netAmount = sale.netAmount || 0;
+      const convertedAmount = this.currencyService.convert(netAmount, 'TZS', displayCurrency);
+      return {
+        ...sale,
+        formattedTotal: this.currencyService.formatCurrencyFull(convertedAmount, displayCurrency),
+        formattedTotalShort: this.currencyService.formatCurrency(convertedAmount, displayCurrency, true),
+        displayCurrency,
+      };
+    });
   }
 
-  async findOne(id: number): Promise<any> {
+  async findOne(id: number, displayCurrency: string = 'TZS'): Promise<any> {
     const sale = await this.saleRepository.findOne({
       where: { id },
       relations: { items: true },
@@ -114,10 +119,13 @@ export class SalesService {
       throw new NotFoundException(`Sale with ID ${id} not found`);
     }
 
+    const netAmount = sale.netAmount || 0;
+    const convertedAmount = this.currencyService.convert(netAmount, 'TZS', displayCurrency);
     return {
       ...sale,
-      formattedTotal: this.currencyService.formatCurrencyFull(sale.netAmount || 0, 'TZS'),
-      formattedTotalShort: this.currencyService.formatCurrency(sale.netAmount || 0, 'TZS', true),
+      formattedTotal: this.currencyService.formatCurrencyFull(convertedAmount, displayCurrency),
+      formattedTotalShort: this.currencyService.formatCurrency(convertedAmount, displayCurrency, true),
+      displayCurrency,
     };
   }
 

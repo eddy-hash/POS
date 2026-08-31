@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Expense } from './entities/expense.entity';
-import { CurrencyService } from '../common/services/currency.service';
+import { CurrencyService } from '../currency/currency.service';
 
 @Injectable()
 export class ExpensesService {

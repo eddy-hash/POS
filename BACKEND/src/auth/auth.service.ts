@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException, NotFoundException, Logger, ForbiddenException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, NotFoundException, Logger, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
@@ -10,6 +10,8 @@ import * as crypto from 'crypto';
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private readonly ADMIN_ROLE_ID = 1;
+  private readonly DEFAULT_ROLE_ID = 4;
 
   constructor(
     private usersService: UsersService,
@@ -26,35 +28,28 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
-    const isAdmin = user.role_id === 1;
-    
+    const isAdmin = user.role_id === this.ADMIN_ROLE_ID;
     this.logger.log(`✅ User found: ${user.id}, isAdmin: ${isAdmin}`);
     this.logger.log(`📊 Current failed attempts: ${user.failedLoginAttempts || 0}`);
 
-    if (!isAdmin) {
-      const lockStatus = await this.usersService.isUserLocked(user.id);
-      if (lockStatus.locked) {
-        this.logger.warn(`🔒 User ${user.id} is locked: ${lockStatus.message}`);
-        throw new ForbiddenException(lockStatus.message);
-      }
-    } else {
-      await this.usersService.resetFailedLoginAttempts(user.id);
+    const lockStatus = await this.usersService.isUserLocked(user.id);
+    if (lockStatus.locked) {
+      this.logger.warn(`🔒 User ${user.id} is locked: ${lockStatus.message}`);
+      throw new ForbiddenException(lockStatus.message);
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       this.logger.warn(`❌ Invalid password for user: ${user.id}`);
       
-      if (!isAdmin) {
-        this.logger.log(`📊 Incrementing failed attempts for user: ${user.id}`);
-        await this.usersService.incrementFailedLoginAttempts(user.id);
-        
-        const lockStatus = await this.usersService.isUserLocked(user.id);
-        if (lockStatus.locked) {
-          this.logger.warn(`🔒 User ${user.id} has been locked after too many attempts`);
-          throw new ForbiddenException(lockStatus.message);
-        }
+      await this.usersService.incrementFailedLoginAttempts(user.id);
+      
+      const newLockStatus = await this.usersService.isUserLocked(user.id);
+      if (newLockStatus.locked) {
+        this.logger.warn(`🔒 User ${user.id} has been locked after too many attempts`);
+        throw new ForbiddenException(newLockStatus.message);
       }
+      
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -63,42 +58,110 @@ export class AuthService {
     await this.usersService.updateProfile(user.id, { lastLogin: new Date() });
 
     const { password: _, ...result } = user;
-    return {
-      ...result,
-      isAdmin,
-    };
+    return { ...result, isAdmin };
   }
 
   async login(user: any) {
-    // Fetch the full user with role relation
     const fullUser = await this.usersService.findById(user.id);
-    const roleName = fullUser.role?.name || 'viewer';
-    const isAdmin = fullUser.role_id === 1;
+    
+    // ✅ FORCE role based on role_id
+    let roleName = 'viewer';
+    if (fullUser.role_id === 1) {
+      roleName = 'admin';
+    } else if (fullUser.role_id === 2) {
+      roleName = 'manager';
+    } else if (fullUser.role_id === 3) {
+      roleName = 'cashier';
+    } else {
+      roleName = 'viewer';
+    }
+    
+    // ✅ Override if role relation exists
+    if (fullUser.role && fullUser.role.name) {
+      roleName = fullUser.role.name;
+    }
+    
+    const isAdmin = fullUser.role_id === this.ADMIN_ROLE_ID;
 
-    const payload = {
+    this.logger.log(`📊 Role: ${roleName}, isAdmin: ${isAdmin}, role_id: ${fullUser.role_id}`);
+
+    const accessToken = this.jwtService.sign({
       email: fullUser.email,
       sub: fullUser.id,
       isAdmin,
-      role_id: fullUser.role_id || 4,
-    };
+      role_id: fullUser.role_id || this.DEFAULT_ROLE_ID,
+    }, { expiresIn: '1h' });
 
-    this.logger.log(`📊 Login payload: ${JSON.stringify(payload)}`);
+    const refreshToken = this.jwtService.sign({
+      sub: fullUser.id,
+    }, { 
+      expiresIn: '7d',
+      secret: process.env.JWT_REFRESH_SECRET || 'refresh-secret-key',
+    });
 
-    // Debug: log the user object we are about to return
+    await this.usersService.updateRefreshToken(fullUser.id, refreshToken);
+
+    // ✅ Build user response WITHOUT permissions
     const userResponse = {
       id: fullUser.id,
+      name: fullUser.name || 'User',
       email: fullUser.email,
-      name: fullUser.name,
-      role_id: fullUser.role_id || 4,
       role: roleName,
-      isAdmin,
+      role_id: fullUser.role_id || this.DEFAULT_ROLE_ID,
+      isAdmin: isAdmin,
     };
-    console.log('🔍 FINAL user response:', JSON.stringify(userResponse, null, 2));
+
+    this.logger.log(`🔍 FINAL user response: ${JSON.stringify(userResponse, null, 2)}`);
 
     return {
-      access_token: this.jwtService.sign(payload),
+      access_token: accessToken,
+      refresh_token: refreshToken,
       user: userResponse,
     };
+  }
+
+  async refreshToken(refreshToken: string) {
+    this.logger.log('🔄 Refreshing token...');
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET || 'refresh-secret-key',
+      });
+      
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) {
+        throw new UnauthorizedException('User not found');
+      }
+      
+      if (user.refreshToken !== refreshToken) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+      
+      const newAccessToken = this.jwtService.sign({
+        email: user.email,
+        sub: user.id,
+        isAdmin: user.role_id === this.ADMIN_ROLE_ID,
+        role_id: user.role_id || this.DEFAULT_ROLE_ID,
+      }, { expiresIn: '1h' });
+      
+      const newRefreshToken = this.jwtService.sign({
+        sub: user.id,
+      }, {
+        expiresIn: '7d',
+        secret: process.env.JWT_REFRESH_SECRET || 'refresh-secret-key',
+      });
+      
+      await this.usersService.updateRefreshToken(user.id, newRefreshToken);
+      
+      this.logger.log(`✅ Tokens refreshed for user: ${user.email}`);
+      
+      return {
+        access_token: newAccessToken,
+        refresh_token: newRefreshToken,
+      };
+    } catch (error) {
+      this.logger.error(`❌ Refresh token failed: ${error.message}`);
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
   }
 
   async register(registerDto: { email: string; password: string; name: string }) {
@@ -129,18 +192,22 @@ export class AuthService {
   }
 
   async forgotPassword(email: string): Promise<{ message: string }> {
-    this.logger.log(`Password reset requested for: ${email}`);
+    this.logger.log(`📧 Password reset requested for: ${email}`);
     
+    if (!email) {
+      throw new BadRequestException('Email is required');
+    }
+
     const user = await this.usersService.findByEmail(email);
     if (!user) {
       return { message: 'If your email is registered, you will receive a reset link.' };
     }
 
+    await this.resetTokenRepository.delete({ userId: user.id, isUsed: false });
+
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 1);
-
-    await this.resetTokenRepository.delete({ userId: user.id, isUsed: false });
 
     const resetToken = this.resetTokenRepository.create({
       userId: user.id,
@@ -150,17 +217,13 @@ export class AuthService {
     });
     await this.resetTokenRepository.save(resetToken);
 
-    console.log(`\n🔑 ===== RESET TOKEN =====`);
-    console.log(`Email: ${email}`);
-    console.log(`Token: ${token}`);
-    console.log(`Expires: ${expiresAt.toLocaleString()}`);
-    console.log(`========================\n`);
+    this.logger.log(`✅ Reset token created for user ID: ${user.id}`);
 
     return { message: 'If your email is registered, you will receive a reset link.' };
   }
 
   async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
-    this.logger.log('Password reset attempt with token');
+    this.logger.log('🔑 Password reset attempt with token');
     
     const resetToken = await this.resetTokenRepository.findOne({
       where: { token, isUsed: false },
@@ -173,6 +236,10 @@ export class AuthService {
 
     if (new Date() > resetToken.expiresAt) {
       throw new UnauthorizedException('Token has expired');
+    }
+
+    if (newPassword.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters');
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);

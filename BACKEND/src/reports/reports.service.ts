@@ -2,11 +2,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Sale } from '../sales/entities/sale.entity';
+import { SaleItem } from '../sales/entities/sale-item.entity';
 import { Expense } from '../expenses/entities/expense.entity';
 import { Product } from '../products/entities/product.entity';
 import { Customer } from '../customers/entities/customer.entity';
 import { PurchaseOrder } from '../purchases/entities/purchase-order.entity';
-import { CurrencyService } from '../common/services/currency.service';
+import { CurrencyService } from '../currency/currency.service';
 
 @Injectable()
 export class ReportsService {
@@ -15,6 +16,8 @@ export class ReportsService {
   constructor(
     @InjectRepository(Sale)
     private saleRepository: Repository<Sale>,
+    @InjectRepository(SaleItem)
+    private saleItemRepository: Repository<SaleItem>,
     @InjectRepository(Expense)
     private expenseRepository: Repository<Expense>,
     @InjectRepository(Product)
@@ -26,7 +29,6 @@ export class ReportsService {
     private currencyService: CurrencyService,
   ) {}
 
-  // ✅ Accept 3 arguments: userId, range, displayCurrency
   async getStats(
     userId: number,
     range: string = 'month',
@@ -64,7 +66,6 @@ export class ReportsService {
       take: 5,
     });
 
-    // ✅ Convert all amounts to display currency
     const convertedRevenue = this.currencyService.convert(totalRevenue, 'TZS', displayCurrency);
     const convertedExpenses = this.currencyService.convert(totalExpenses, 'TZS', displayCurrency);
     const convertedProfit = this.currencyService.convert(profit, 'TZS', displayCurrency);
@@ -85,6 +86,7 @@ export class ReportsService {
       recentExpenses,
       lowStockItems,
       displayCurrency,
+      range,
       formatted: {
         totalRevenue: this.currencyService.formatCurrencyFull(convertedRevenue, displayCurrency),
         totalRevenueShort: this.currencyService.formatCurrency(convertedRevenue, displayCurrency, true),
@@ -104,7 +106,6 @@ export class ReportsService {
   private async getSalesTrend(userId: number) {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
     const sales = await this.saleRepository
       .createQueryBuilder('sale')
       .where('sale.userId = :userId', { userId })
@@ -114,29 +115,22 @@ export class ReportsService {
 
     const trend: { date: string; amount: number }[] = [];
     const dateMap = new Map<string, number>();
-
     for (const sale of sales) {
       const date = sale.saleDate.toISOString().split('T')[0];
       dateMap.set(date, (dateMap.get(date) || 0) + Number(sale.netAmount || 0));
     }
-
     for (let i = 6; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
       const key = date.toISOString().split('T')[0];
-      trend.push({
-        date: key,
-        amount: dateMap.get(key) || 0,
-      });
+      trend.push({ date: key, amount: dateMap.get(key) || 0 });
     }
-
     return trend;
   }
 
   private async getExpenseTrend(userId: number) {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
     const expenses = await this.expenseRepository
       .createQueryBuilder('expense')
       .where('expense.userId = :userId', { userId })
@@ -146,22 +140,16 @@ export class ReportsService {
 
     const trend: { date: string; amount: number }[] = [];
     const dateMap = new Map<string, number>();
-
     for (const expense of expenses) {
       const date = expense.expenseDate.toISOString().split('T')[0];
       dateMap.set(date, (dateMap.get(date) || 0) + Number(expense.amount || 0));
     }
-
     for (let i = 6; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
       const key = date.toISOString().split('T')[0];
-      trend.push({
-        date: key,
-        amount: dateMap.get(key) || 0,
-      });
+      trend.push({ date: key, amount: dateMap.get(key) || 0 });
     }
-
     return trend;
   }
 
@@ -170,9 +158,7 @@ export class ReportsService {
       where: { userId },
       relations: { items: true },
     });
-
     const productMap = new Map<number, { name: string; sales: number }>();
-
     for (const sale of sales) {
       for (const item of sale.items || []) {
         const existing = productMap.get(item.productId);
@@ -186,7 +172,6 @@ export class ReportsService {
         }
       }
     }
-
     return Array.from(productMap.values())
       .sort((a, b) => b.sales - a.sales)
       .slice(0, 5);
@@ -197,9 +182,7 @@ export class ReportsService {
       where: { userId },
       order: { saleDate: 'DESC' },
     });
-
     const monthlyMap = new Map<string, { revenue: number; expenses: number; profit: number }>();
-
     for (const sale of sales) {
       const month = sale.saleDate.toISOString().slice(0, 7);
       if (!monthlyMap.has(month)) {
@@ -208,7 +191,6 @@ export class ReportsService {
       const data = monthlyMap.get(month)!;
       data.revenue += Number(sale.netAmount || 0);
     }
-
     const expenses = await this.expenseRepository.find({ where: { userId } });
     for (const expense of expenses) {
       const month = expense.expenseDate.toISOString().slice(0, 7);
@@ -218,15 +200,13 @@ export class ReportsService {
       const data = monthlyMap.get(month)!;
       data.expenses += Number(expense.amount || 0);
     }
-
-    const result = Array.from(monthlyMap.entries())
+    return Array.from(monthlyMap.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
       .slice(-6)
       .map(([month, data]) => {
         const convertedRevenue = this.currencyService.convert(data.revenue, 'TZS', displayCurrency);
         const convertedExpenses = this.currencyService.convert(data.expenses, 'TZS', displayCurrency);
         const convertedProfit = this.currencyService.convert(data.revenue - data.expenses, 'TZS', displayCurrency);
-        
         return {
           month,
           revenue: convertedRevenue,
@@ -242,7 +222,5 @@ export class ReportsService {
           },
         };
       });
-
-    return result;
   }
 }

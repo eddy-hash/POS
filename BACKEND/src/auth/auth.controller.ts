@@ -5,6 +5,7 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -15,12 +16,26 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async login(@Body() loginDto: LoginDto) {
     const user = await this.authService.validateUser(loginDto.email, loginDto.password);
-    const token = await this.authService.login(user);
+    const tokens = await this.authService.login(user);
     
+    // ✅ Return tokens.user directly instead of rebuilding
     return {
       success: true,
-      access_token: token.access_token,
-      user: token.user,
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      user: tokens.user, // ✅ Use the user from tokens
+    };
+  }
+
+  @Post('refresh')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  async refresh(@Body() refreshTokenDto: RefreshTokenDto) {
+    const tokens = await this.authService.refreshToken(refreshTokenDto.refresh_token);
+    return {
+      success: true,
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
     };
   }
 

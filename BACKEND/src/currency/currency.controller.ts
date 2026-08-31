@@ -1,5 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { CurrencyService } from '../common/services/currency.service';
+import { CurrencyService } from '../currency/currency.service';
 import { Public } from '../auth/decorators/permissions.decorator';
 
 @Controller('currency')

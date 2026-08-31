@@ -1,5 +1,5 @@
 import { Module, Global } from '@nestjs/common';
-import { CurrencyService } from '../common/services/currency.service';
+import { CurrencyService } from '../currency/currency.service';
 import { CurrencyController } from './currency.controller';
 
 @Global()

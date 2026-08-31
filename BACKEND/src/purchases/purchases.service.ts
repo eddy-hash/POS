@@ -4,7 +4,8 @@ import { Repository } from 'typeorm';
 import { PurchaseOrder } from './entities/purchase-order.entity';
 import { PurchaseItem } from './entities/purchase-item.entity';
 import { CreatePurchaseDto } from './dto/create-purchase.dto';
-import { CurrencyService } from '../common/services/currency.service';
+import { CurrencyService } from '../currency/currency.service';
+
 
 @Injectable()
 export class PurchasesService {

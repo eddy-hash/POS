@@ -4,7 +4,8 @@ import { CustomersController } from './customers.controller';
 import { CustomersService } from './customers.service';
 import { Customer } from './entities/customer.entity';
 import { Sale } from '../sales/entities/sale.entity';
-import { CurrencyService } from '../common/services/currency.service';
+import { CurrencyService } from '../currency/currency.service';
+
 
 @Module({
   imports: [
