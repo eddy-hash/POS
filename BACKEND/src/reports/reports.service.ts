@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import PDFDocument from 'pdfkit';
 import { Sale } from '../sales/entities/sale.entity';
 import { SaleItem } from '../sales/entities/sale-item.entity';
 import { Expense } from '../expenses/entities/expense.entity';
@@ -222,5 +223,68 @@ export class ReportsService {
           },
         };
       });
+  }
+
+  // ---- PDF generation with pdfkit ----
+  async generateReportPdf(userId: number, range: string, displayCurrency: string): Promise<Buffer> {
+    this.logger.log(`Generating PDF for user ${userId}, range: ${range}, currency: ${displayCurrency}`);
+    const stats = await this.getStats(userId, range, displayCurrency);
+
+    return new Promise<Buffer>((resolve, reject) => {
+      const doc = new PDFDocument({ size: 'A4', margin: 50 });
+      const chunks: Buffer[] = [];
+
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', (err) => reject(err));
+
+      // Header
+      doc.fontSize(20).font('Helvetica-Bold').text('Business Report', { align: 'center' });
+      doc.moveDown(0.5);
+      doc.fontSize(12).font('Helvetica');
+      doc.text(`Period: ${range.toUpperCase()}`, { align: 'center' });
+      doc.text(`Currency: ${displayCurrency}`, { align: 'center' });
+      doc.text(`Generated: ${new Date().toLocaleString()}`, { align: 'center' });
+      doc.moveDown(1.5);
+
+      // Summary table
+      doc.fontSize(14).font('Helvetica-Bold').text('Summary');
+      doc.moveDown(0.5);
+
+      const data = [
+        ['Total Sales', stats.totalSales ?? 0],
+        ['Total Revenue', stats.formatted?.totalRevenue || stats.totalRevenue],
+        ['Total Expenses', stats.formatted?.totalExpenses || stats.totalExpenses],
+        ['Net Profit', stats.formatted?.profit || stats.profit],
+        ['Total Customers', stats.totalCustomers ?? 0],
+        ['Active Products', stats.totalProducts ?? 0],
+        ['Total Purchases', stats.totalPurchases ?? 0],
+      ];
+
+      const startX = 50;
+      let yPos = doc.y;
+      const col1X = startX;
+      const col2X = 300;
+
+      // Table header
+      doc.fontSize(10).font('Helvetica-Bold');
+      doc.text('Metric', col1X, yPos, { width: 200, continued: false });
+      doc.text('Value', col2X, yPos, { width: 100, align: 'right' });
+      yPos += 20;
+
+      // Table rows
+      doc.fontSize(10).font('Helvetica');
+      data.forEach(([label, value]) => {
+        // Alternate row background (light gray)
+        if ((data.indexOf([label, value]) + 1) % 2 === 0) {
+          doc.rect(col1X - 5, yPos - 3, 400, 16).fill('#f5f5f5');
+        }
+        doc.text(label, col1X, yPos, { width: 200 });
+        doc.text(String(value), col2X, yPos, { width: 100, align: 'right' });
+        yPos += 20;
+      });
+
+      doc.end();
+    });
   }
 }

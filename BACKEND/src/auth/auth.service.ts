@@ -29,8 +29,8 @@ export class AuthService {
     }
 
     const isAdmin = user.role_id === this.ADMIN_ROLE_ID;
-    this.logger.log(`✅ User found: ${user.id}, isAdmin: ${isAdmin}`);
-    this.logger.log(`📊 Current failed attempts: ${user.failedLoginAttempts || 0}`);
+    this.logger.log(` User found: ${user.id}, isAdmin: ${isAdmin}`);
+    this.logger.log(` Current failed attempts: ${user.failedLoginAttempts || 0}`);
 
     const lockStatus = await this.usersService.isUserLocked(user.id);
     if (lockStatus.locked) {
@@ -53,7 +53,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    this.logger.log(`✅ Valid password for user: ${user.id}, resetting attempts`);
+    this.logger.log(`Valid password for user: ${user.id}, resetting attempts`);
     await this.usersService.resetFailedLoginAttempts(user.id);
     await this.usersService.updateProfile(user.id, { lastLogin: new Date() });
 
@@ -64,19 +64,19 @@ export class AuthService {
   async login(user: any) {
     const fullUser = await this.usersService.findById(user.id);
     
-    // ✅ FORCE role based on role_id
+    //  DETERMINE ROLE NAME BASED ON role_id
     let roleName = 'viewer';
-    if (fullUser.role_id === 1) {
+    if (fullUser.role_id === this.ADMIN_ROLE_ID) {
       roleName = 'admin';
     } else if (fullUser.role_id === 2) {
       roleName = 'manager';
     } else if (fullUser.role_id === 3) {
       roleName = 'cashier';
-    } else {
+    } else if (fullUser.role_id === 4) {
       roleName = 'viewer';
     }
     
-    // ✅ Override if role relation exists
+    //  If role relation exists, use it (but fallback to role_id)
     if (fullUser.role && fullUser.role.name) {
       roleName = fullUser.role.name;
     }
@@ -101,14 +101,14 @@ export class AuthService {
 
     await this.usersService.updateRefreshToken(fullUser.id, refreshToken);
 
-    // ✅ Build user response WITHOUT permissions
     const userResponse = {
       id: fullUser.id,
-      name: fullUser.name || 'User',
+      name: fullUser.name,
       email: fullUser.email,
-      role: roleName,
+      role: roleName, // ✅ Now returns 'admin' for role_id = 1
       role_id: fullUser.role_id || this.DEFAULT_ROLE_ID,
-      isAdmin: isAdmin,
+      isAdmin,
+      permissions: [],
     };
 
     this.logger.log(`🔍 FINAL user response: ${JSON.stringify(userResponse, null, 2)}`);
@@ -152,17 +152,18 @@ export class AuthService {
       
       await this.usersService.updateRefreshToken(user.id, newRefreshToken);
       
-      this.logger.log(`✅ Tokens refreshed for user: ${user.email}`);
+      this.logger.log(` Tokens refreshed for user: ${user.email}`);
       
       return {
         access_token: newAccessToken,
         refresh_token: newRefreshToken,
-      };
-    } catch (error) {
-      this.logger.error(`❌ Refresh token failed: ${error.message}`);
-      throw new UnauthorizedException('Invalid or expired refresh token');
+         };
+     } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        this.logger.error(`❌ Refresh token failed: ${message}`);
+        throw new UnauthorizedException('Invalid or expired refresh token');
+     }
     }
-  }
 
   async register(registerDto: { email: string; password: string; name: string }) {
     try {
