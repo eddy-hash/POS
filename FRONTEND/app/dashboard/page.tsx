@@ -35,6 +35,7 @@ export default function DashboardPage() {
     try {
       setLoading(true);
       const data = await fetchDashboardStats(currency);
+      console.log('📊 Dashboard data:', data);
       setStats(data);
     } catch (error: any) {
       console.error('Error loading dashboard:', error);
@@ -93,26 +94,20 @@ export default function DashboardPage() {
   const totalProfit = profit > 0 ? profit : 0;
   const loss = profit < 0 ? Math.abs(profit) : 0;
 
-  // ✅ Use backend formatted values
   const f = stats.formatted || {};
-  const fFull = stats.formattedFull || {};
   const useAbbreviated = currency === 'TZS';
-
-  let displayRevenue = '0';
-  let displayExpenses = '0';
-  let displayProfit = '0';
-
-  if (useAbbreviated) {
-    // TZS: Use abbreviated (K/M/B)
-    displayRevenue = f.totalRevenue || `${symbols[currency] || currency} ${(stats.totalRevenue || 0).toLocaleString()}`;
-    displayExpenses = f.totalExpenses || `${symbols[currency] || currency} ${(stats.totalExpenses || 0).toLocaleString()}`;
-    displayProfit = f.profit || `${symbols[currency] || currency} ${(profit || 0).toLocaleString()}`;
-  } else {
-    // Non-TZS: Use full format with 2 decimal places
-    displayRevenue = fFull.totalRevenue || f.totalRevenue || `${symbols[currency] || currency} ${(stats.totalRevenue || 0).toFixed(2)}`;
-    displayExpenses = fFull.totalExpenses || f.totalExpenses || `${symbols[currency] || currency} ${(stats.totalExpenses || 0).toFixed(2)}`;
-    displayProfit = fFull.profit || f.profit || `${symbols[currency] || currency} ${(profit || 0).toFixed(2)}`;
-  }
+  
+  const displayRevenue = useAbbreviated 
+    ? (f.totalRevenue || 'TSh 0')
+    : (stats.formattedFull?.totalRevenue || f.totalRevenue || '');
+  
+  const displayExpenses = useAbbreviated
+    ? (f.totalExpenses || 'TSh 0')
+    : (stats.formattedFull?.totalExpenses || f.totalExpenses || '');
+  
+  const displayProfit = useAbbreviated
+    ? (f.profit || 'TSh 0')
+    : (stats.formattedFull?.profit || f.profit || '');
 
   const statCards = [
     {
@@ -167,14 +162,20 @@ export default function DashboardPage() {
   ];
 
   const topProducts = Array.isArray(stats.topProducts) ? stats.topProducts : [];
+  const salesTrend = stats.salesTrend || [];
+  const expenseTrend = stats.expenseTrend || [];
+
+  // Debug output
+  console.log('📊 Sales Trend length:', salesTrend.length);
+  console.log('📊 Sales Trend data:', salesTrend);
+  console.log('📊 Top Products:', topProducts);
 
   return (
     <div className="space-y-6 dark:bg-slate-900 dark:text-white p-3 sm:p-4 md:p-6 min-h-screen">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">Dashboard</h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Overview of your business performance</p>
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">Dashboard Overview</h1>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
             Displaying in: {currency} {symbols[currency] || ''}
             {currency === 'TZS' && ` (1 USD = ${(rates.USD || 2600).toLocaleString()} TZS)`}
           </p>
@@ -211,18 +212,30 @@ export default function DashboardPage() {
         })}
       </div>
 
+      {/* ✅ Debug: Show raw data */}
+      <div className="bg-white dark:!bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+        <h3 className="font-semibold text-slate-900 dark:text-white text-sm mb-2">🔍 Debug: Sales Trend Data</h3>
+        <pre className="text-xs bg-slate-100 dark:bg-slate-700 p-2 rounded overflow-auto max-h-32">
+          {JSON.stringify(salesTrend, null, 2)}
+        </pre>
+        <h3 className="font-semibold text-slate-900 dark:text-white text-sm mt-4 mb-2">🔍 Debug: Top Products</h3>
+        <pre className="text-xs bg-slate-100 dark:bg-slate-700 p-2 rounded overflow-auto max-h-32">
+          {JSON.stringify(topProducts, null, 2)}
+        </pre>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
         <div className="bg-white dark:!bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6">
           <h3 className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base mb-4">Sales Trend</h3>
           <div className="h-[200px] sm:h-[250px]">
-            <SalesTrendChart data={stats.salesTrend || []} />
+            <SalesTrendChart data={salesTrend} />
           </div>
         </div>
 
         <div className="bg-white dark:!bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6">
           <h3 className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base mb-4">Expenses Trend</h3>
           <div className="h-[200px] sm:h-[250px]">
-            <ExpensesTrendChart data={stats.expenseTrend || []} />
+            <ExpensesTrendChart data={expenseTrend} />
           </div>
         </div>
       </div>

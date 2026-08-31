@@ -18,7 +18,7 @@ import SuccessModal from '@/components/SuccessModal';
 import ConfirmModal from '@/components/ConfirmModal';
 import { useCurrencySafe } from '@/context/CurrencyContext';
 
-export default function SalesPage() {
+export default function SalesList() {
   const router = useRouter();
   const currencyContext = useCurrencySafe();
 
@@ -69,7 +69,7 @@ export default function SalesPage() {
       setModalTitle('Sale Deleted');
       setModalMessage('The sale has been deleted successfully.');
       setModalOpen(true);
-      await fetchSales();
+      await fetchSales(); // Refresh list
     } catch (err: any) {
       const message = err?.message || 'Failed to delete sale';
       showErrorToast(message);
@@ -116,20 +116,21 @@ export default function SalesPage() {
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Sales</h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Manage your sales transactions</p>
+              <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Sales</h1>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Manage your sales transactions</p>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={fetchSales}
-                className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-blue-600 dark:hover:border-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-sm font-medium text-slate-700 dark:text-slate-300"
+                aria-label="Refresh sales"
+                className="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-blue-600 dark:hover:border-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition text-sm font-medium text-slate-700 dark:text-slate-300"
               >
                 <ArrowPathIcon className="h-4 w-4" />
                 <span>Refresh</span>
               </button>
               <button
                 onClick={() => router.push('/dashboard/sales/new')}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm font-medium shadow-sm hover:shadow-md"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-br from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-lg transition text-sm font-medium shadow-sm hover:shadow-md"
               >
                 <PlusIcon className="h-4 w-4" />
                 <span>New Sale</span>
@@ -170,7 +171,7 @@ export default function SalesPage() {
                 </div>
                 <div>
                   <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Revenue</p>
-                  <p className="text-2xl font-bold text-green-600 dark:text-green-400 truncate max-w-[120px]">
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-400 truncate max-w-[180px]">
                     {formatCurrency(totalRevenue)}
                   </p>
                 </div>
@@ -200,7 +201,7 @@ export default function SalesPage() {
             </div>
           </div>
 
-          {/* Search Bar - Consistent small icon */}
+          {/* Search Bar */}
           <div className="relative max-w-md">
             <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
@@ -229,7 +230,7 @@ export default function SalesPage() {
               {!search && (
                 <button
                   onClick={() => router.push('/dashboard/sales/new')}
-                  className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition"
+                  className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-br from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition"
                 >
                   <PlusIcon className="h-4 w-4" />
                   Create First Sale
@@ -286,6 +287,7 @@ export default function SalesPage() {
                     <button
                       onClick={() => router.push(`/dashboard/sales/${sale.id}/edit`)}
                       className="p-1.5 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+                      aria-label={`Edit sale ${sale.saleNumber}`}
                     >
                       <PencilIcon className="h-4 w-4" />
                     </button>
@@ -293,6 +295,7 @@ export default function SalesPage() {
                       onClick={() => requestDelete(sale.id)}
                       disabled={deletingId === sale.id}
                       className="p-1.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50"
+                      aria-label={`Delete sale ${sale.saleNumber}`}
                     >
                       <TrashIcon className="h-4 w-4" />
                     </button>
