@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { showErrorToast } from '@/lib/toast';
+import { api } from '@/lib/services/api';          // ✅ import the api service
 import { Product } from '../types';
 
 export function useProducts() {
@@ -9,20 +10,13 @@ export function useProducts() {
   const fetchProducts = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${API_URL}/products`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) throw new Error('Failed to fetch products');
+      const data = await api.get('/products', token);
       
-      const data = await response.json();
-      
-      // ✅ Handle both array and object responses
       const productArray = Array.isArray(data) ? data : (data?.data || data?.products || []);
       setProducts(productArray);
     } catch (err: any) {
       showErrorToast(err.message);
-      setProducts([]); // fallback
+      setProducts([]); 
     } finally {
       setLoading(false);
     }

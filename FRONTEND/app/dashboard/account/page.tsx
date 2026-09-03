@@ -40,7 +40,7 @@ export default function AccountSettingsPage() {
     setLoading(true);
     try {
       const token = localStorage.getItem('access_token');
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
       
       const response = await fetch(`${API_URL}/auth/change-password`, {
         method: 'POST',

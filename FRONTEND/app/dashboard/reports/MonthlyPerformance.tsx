@@ -24,7 +24,7 @@ export default function MonthlyPerformance({ monthlyStats, formatCurrency }: Mon
           <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200 dark:stroke-slate-700" />
           <XAxis dataKey="month" className="text-[10px] sm:text-xs" tick={{ fontSize: 10 }} />
           <YAxis className="text-[10px] sm:text-xs" tick={{ fontSize: 10 }} />
-          <Tooltip formatter={(value: number) => formatCurrency(value)} />
+          <Tooltip formatter={(value: any) => formatCurrency(value)} />
           <Bar dataKey="revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} />
           <Bar dataKey="expenses" fill="#ef4444" radius={[4, 4, 0, 0]} />
           <Bar dataKey="profit" fill="#10b981" radius={[4, 4, 0, 0]} />

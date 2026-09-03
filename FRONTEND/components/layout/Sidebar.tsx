@@ -27,7 +27,6 @@ const navItems = [
   { name: 'Sales', icon: ShoppingBagIcon, href: '/dashboard/sales' },
   { name: 'Expenses', icon: CreditCardIcon, href: '/dashboard/expenses' },
   { name: 'Purchases', icon: TruckIcon, href: '/dashboard/purchases' },
-  { name: 'Customers', icon: UsersIcon, href: '/dashboard/customers' },
   { name: 'Reports', icon: ChartBarIcon, href: '/dashboard/reports' },
   { name: 'Settings', icon: Cog6ToothIcon, href: '/dashboard/settings' },
 ];
@@ -100,7 +99,7 @@ export default function Sidebar({ isOpen, isMobile, onClose }: SidebarProps) {
 
           <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
             {navItems.map((item) => {
-              const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+           const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
               return (
                 <Link
                   key={item.name}

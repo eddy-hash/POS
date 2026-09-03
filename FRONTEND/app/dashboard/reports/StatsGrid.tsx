@@ -58,15 +58,7 @@ export function StatsGrid({ stats, formatCurrency }: StatsGridProps) {
       trendUp: stats.profit >= 0,
       isCurrency: true,   
     },
-    {
-      title: 'Total Customers',
-      value: stats.totalCustomers,
-      icon: UsersIcon,
-      color: 'bg-yellow-500',
-      trend: stats.totalCustomers > 0 ? '+5.2%' : '+0%',
-      trendUp: true,
-      isCurrency: false,  // count
-    },
+
     {
       title: 'Total Products',
       value: stats.totalProducts,
@@ -81,7 +73,7 @@ export function StatsGrid({ stats, formatCurrency }: StatsGridProps) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
       {statCards.map((stat) => (
-        <StatCard key={stat.title} {...stat} formatCurrency={formatCurrency} />
+        <StatCard key={stat.title} {...stat}  />
       ))}
     </div>
   );

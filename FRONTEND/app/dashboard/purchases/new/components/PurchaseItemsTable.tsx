@@ -51,7 +51,7 @@ export function PurchaseItemsTable({ items, onQuantityChange, onRemoveItem }: Pu
                 {item.productName}
               </td>
               <td className="py-3 text-sm text-slate-500 dark:text-slate-400 text-center hidden sm:table-cell">
-                {item.sku || '—'}
+                {(item as any).sku || '—'}
               </td>
               <td className="py-3 text-sm text-slate-600 dark:text-slate-300 text-center">
                 TZS {item.price.toLocaleString()}

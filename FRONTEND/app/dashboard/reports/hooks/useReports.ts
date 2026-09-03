@@ -47,7 +47,7 @@ export function useReports(dateRange: string) {
         router.push('/');
         return;
       }
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
       const res = await fetch(`${API_URL}/reports/stats?range=${dateRange}`, {
         headers: { Authorization: `Bearer ${token}` },
       });

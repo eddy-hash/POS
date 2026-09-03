@@ -14,12 +14,19 @@ export function useSaleForm() {
   const [loading, setLoading] = useState(false);
 
   const addProduct = (product: Product) => {
+    
+    const price = typeof product.price === 'number' ? product.price : Number(product.price);
+    if (isNaN(price)) {
+      showErrorToast('Invalid product price');
+      return;
+    }
+
     const existing = saleItems.find(item => item.productId === product.id);
     if (existing) {
       setSaleItems(prev =>
         prev.map(item =>
           item.productId === product.id
-            ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * item.price }
+            ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * price }
             : item
         )
       );
@@ -29,9 +36,9 @@ export function useSaleForm() {
         {
           productId: product.id,
           productName: product.name,
-          price: product.price,
+          price: price,
           quantity: 1,
-          total: product.price,
+          total: price, // now a number
         },
       ]);
     }
@@ -71,8 +78,8 @@ export function useSaleForm() {
     setLoading(true);
     try {
       const token = localStorage.getItem('access_token');
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
       const payload: SaleFormData = {
         customerName,
         paymentMethod,
@@ -93,7 +100,7 @@ export function useSaleForm() {
       });
 
       if (!response.ok) throw new Error('Failed to create sale');
-      
+
       showSuccessToast('Sale created successfully!');
       router.push('/dashboard/sales');
     } catch (err: any) {

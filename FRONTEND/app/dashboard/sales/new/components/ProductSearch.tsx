@@ -34,6 +34,7 @@ export function ProductSearch({ products, onAddProduct }: ProductSearchProps) {
       {show && (
         <div className="mb-4 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-700">
           <input
+            key="search-product"
             type="text"
             placeholder="Search products..."
             value={searchTerm}

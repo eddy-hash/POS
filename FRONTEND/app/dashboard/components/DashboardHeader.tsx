@@ -1,0 +1,30 @@
+'use client';
+import { ArrowPathIcon } from '@heroicons/react/24/outline';
+
+interface DashboardHeaderProps {
+  currency: string;
+  symbols: Record<string, string>;
+  rates: Record<string, number>;
+  onRefresh: () => void;
+}
+
+export function DashboardHeader({ currency, symbols, rates, onRefresh }: DashboardHeaderProps) {
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">Dashboard Overview</h1>
+        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
+          Displaying in: {currency} {symbols[currency] || ''}
+          {currency === 'TZS' && ` (1 USD = ${(rates.USD || 2600).toLocaleString()} TZS)`}
+        </p>
+      </div>
+      <button
+        onClick={onRefresh}
+        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
+      >
+        <ArrowPathIcon className="h-4 w-4" />
+        <span>Refresh</span>
+      </button>
+    </div>
+  );
+}

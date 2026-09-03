@@ -1,81 +1,39 @@
 'use client';
+import { useState } from 'react';
+import { motion, AnimatePresence, easeOut } from 'framer-motion';
+import { ArrowLeftIcon, ArrowRightIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { DashboardHeader } from './components/DashboardHeader';
+import { StatCards } from './components/StatCards';
+import { ChartsRow } from './components/ChartsRow';
+import { BottomCharts } from './components/BottomCharts';
+import { useDashboard } from './hooks/useDashboard';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { 
-  ShoppingBagIcon, 
-  CurrencyDollarIcon, 
-  CreditCardIcon, 
-  UsersIcon,
-  CubeIcon,
-  ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
-  ArrowPathIcon,
-  TruckIcon
-} from '@heroicons/react/24/outline';
-import { useCurrencySafe } from '@/context/CurrencyContext';
-import { fetchDashboardStats } from '@/lib/dashboard';
-import { showErrorToast } from '@/lib/toast';
-import SalesTrendChart from '@/components/dashboard/SalesTrendChart';
-import ExpensesTrendChart from '@/components/dashboard/ExpensesTrendChart';
-import ProductSalesPieChart from '@/components/dashboard/ProductSalesPieChart';
-import ProfitLossChart from '@/components/dashboard/ProfitLossChart';
+const STEPS = ['Overview', 'Trends', 'Insights'];
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const currencyContext = useCurrencySafe();
-  const currency = currencyContext?.currency || 'TZS';
-  const symbols = currencyContext?.symbols || {};
-  const rates = currencyContext?.rates || {};
+  const [currentStep, setCurrentStep] = useState(0);
+  const { loading, stats, currency, symbols, rates, loadDashboard } = useDashboard();
 
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<any>(null);
+  const isLastStep = currentStep === STEPS.length - 1;
 
-  const loadDashboard = async () => {
-    try {
-      setLoading(true);
-      const data = await fetchDashboardStats(currency);
-      console.log('📊 Dashboard data:', data);
-      setStats(data);
-    } catch (error: any) {
-      console.error('Error loading dashboard:', error);
-      showErrorToast(error.message || 'Failed to load dashboard');
-      if (error.message.includes('401')) {
-        localStorage.removeItem('access_token');
-        router.push('/');
-      }
-    } finally {
-      setLoading(false);
-    }
+  const nextStep = () => {
+    if (isLastStep) return;
+    setCurrentStep((prev) => Math.min(prev + 1, STEPS.length - 1));
   };
 
-  useEffect(() => {
-    loadDashboard();
-  }, []);
+  const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 0));
 
-  useEffect(() => {
-    const handleCurrencyChange = () => {
-      loadDashboard();
-    };
-    window.addEventListener('currencyChanged', handleCurrencyChange);
-    window.addEventListener('refreshDashboard', loadDashboard);
-    return () => {
-      window.removeEventListener('currencyChanged', handleCurrencyChange);
-      window.removeEventListener('refreshDashboard', loadDashboard);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (currency) {
-      loadDashboard();
-    }
-  }, [currency]);
-
+  // ─── Loading ────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400" />
-      </div>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="flex items-center justify-center min-h-[400px]"
+      >
+        <div className="h-12 w-12 rounded-full border-2 border-slate-200 dark:border-slate-700 border-t-blue-600 dark:border-t-blue-400 animate-spin" />
+      </motion.div>
     );
   }
 
@@ -83,7 +41,10 @@ export default function DashboardPage() {
     return (
       <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-center">
         <p className="text-red-600 dark:text-red-400 text-sm">Failed to load dashboard</p>
-        <button onClick={loadDashboard} className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm">
+        <button
+          onClick={loadDashboard}
+          className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
+        >
           Retry
         </button>
       </div>
@@ -96,164 +57,134 @@ export default function DashboardPage() {
 
   const f = stats.formatted || {};
   const useAbbreviated = currency === 'TZS';
-  
-  const displayRevenue = useAbbreviated 
-    ? (f.totalRevenue || 'TSh 0')
-    : (stats.formattedFull?.totalRevenue || f.totalRevenue || '');
-  
+  const displayRevenue = useAbbreviated
+    ? f.totalRevenue || 'TSh 0'
+    : stats.formattedFull?.totalRevenue || f.totalRevenue || '';
   const displayExpenses = useAbbreviated
-    ? (f.totalExpenses || 'TSh 0')
-    : (stats.formattedFull?.totalExpenses || f.totalExpenses || '');
-  
+    ? f.totalExpenses || 'TSh 0'
+    : stats.formattedFull?.totalExpenses || f.totalExpenses || '';
   const displayProfit = useAbbreviated
-    ? (f.profit || 'TSh 0')
-    : (stats.formattedFull?.profit || f.profit || '');
-
-  const statCards = [
-    {
-      title: 'Total Revenue',
-      displayValue: displayRevenue,
-      icon: CurrencyDollarIcon,
-      color: 'bg-emerald-500',
-      href: '/dashboard/sales',
-    },
-    {
-      title: 'Total Sales',
-      displayValue: stats.totalSales?.toLocaleString() || '0',
-      icon: ShoppingBagIcon,
-      color: 'bg-blue-500',
-      href: '/dashboard/sales',
-    },
-    {
-      title: 'Total Expenses',
-      displayValue: displayExpenses,
-      icon: CreditCardIcon,
-      color: 'bg-red-500',
-      href: '/dashboard/expenses',
-    },
-    {
-      title: 'Total Profit',
-      displayValue: displayProfit,
-      icon: profit >= 0 ? ArrowTrendingUpIcon : ArrowTrendingDownIcon,
-      color: profit >= 0 ? 'bg-purple-500' : 'bg-orange-500',
-      href: '/dashboard/reports',
-    },
-    {
-      title: 'Total Customers',
-      displayValue: stats.totalCustomers?.toLocaleString() || '0',
-      icon: UsersIcon,
-      color: 'bg-yellow-500',
-      href: '/dashboard/customers',
-    },
-    {
-      title: 'Total Products',
-      displayValue: stats.totalProducts?.toLocaleString() || '0',
-      icon: CubeIcon,
-      color: 'bg-indigo-500',
-      href: '/dashboard/products',
-    },
-    {
-      title: 'Total Purchases',
-      displayValue: (stats.totalPurchases || 0).toLocaleString(),
-      icon: TruckIcon,
-      color: 'bg-teal-500',
-      href: '/dashboard/purchases',
-    },
-  ];
+    ? f.profit || 'TSh 0'
+    : stats.formattedFull?.profit || f.profit || '';
 
   const topProducts = Array.isArray(stats.topProducts) ? stats.topProducts : [];
   const salesTrend = stats.salesTrend || [];
   const expenseTrend = stats.expenseTrend || [];
 
-  // Debug output
-  console.log('📊 Sales Trend length:', salesTrend.length);
-  console.log('📊 Sales Trend data:', salesTrend);
-  console.log('📊 Top Products:', topProducts);
+  // ─── Step Content ──────────────────────────────────────────────────
+  const StepContent = () => {
+    switch (currentStep) {
+      case 0:
+        return (
+          <motion.div
+            key="step-0"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.25 }}
+          >
+            <StatCards
+              stats={stats}
+              displayRevenue={displayRevenue}
+              displayExpenses={displayExpenses}
+              displayProfit={displayProfit}
+              profit={profit}
+            />
+          </motion.div>
+        );
+      case 1:
+        return (
+          <motion.div
+            key="step-1"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.25 }}
+          >
+            <ChartsRow salesTrend={salesTrend} expenseTrend={expenseTrend} />
+          </motion.div>
+        );
+      case 2:
+        return (
+          <motion.div
+            key="step-2"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.25 }}
+          >
+            <BottomCharts topProducts={topProducts} profit={totalProfit} loss={loss} />
+          </motion.div>
+        );
+      default:
+        return null;
+    }
+  };
 
+  // ─── Main Render ───────────────────────────────────────────────────
   return (
     <div className="space-y-6 dark:bg-slate-900 dark:text-white p-3 sm:p-4 md:p-6 min-h-screen">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">Dashboard Overview</h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-            Displaying in: {currency} {symbols[currency] || ''}
-            {currency === 'TZS' && ` (1 USD = ${(rates.USD || 2600).toLocaleString()} TZS)`}
-          </p>
-        </div>
-        <button onClick={loadDashboard} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm">
-          <ArrowPathIcon className="h-4 w-4" />
-          <span>Refresh</span>
+      
+      {/* ─── Header (always visible) ───────────────────────────────── */}
+      <DashboardHeader
+        currency={currency}
+        symbols={symbols}
+        rates={rates}
+        onRefresh={loadDashboard}
+      />
+
+      {/* ─── Progress Bar ───────────────────────────────────────────── */}
+      <div className="flex gap-1">
+        {STEPS.map((_, idx) => (
+          <div
+            key={idx}
+            className={`h-1 flex-1 rounded-full transition-all ${
+              idx <= currentStep ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'
+            }`}
+          />
+        ))}
+      </div>
+
+      {/* ─── Step Indicator ─────────────────────────────────────────── */}
+      <p className="text-sm text-slate-500 dark:text-slate-400">
+        Step {currentStep + 1} of {STEPS.length}: {STEPS[currentStep]}
+      </p>
+
+      {/* ─── Step Content ───────────────────────────────────────────── */}
+      <div className="min-h-[300px]">
+        <AnimatePresence mode="wait">
+          <StepContent key={currentStep} />
+        </AnimatePresence>
+      </div>
+
+      {/* ─── Navigation Buttons ────────────────────────────────────── */}
+      <div className="flex justify-between items-center gap-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+        <button
+          type="button"
+          onClick={prevStep}
+          disabled={currentStep === 0}
+          className="px-6 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Back
         </button>
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-        {statCards.map((stat) => {
-          const Icon = stat.icon;
-          const isNegative = stat.title === 'Total Profit' && profit < 0;
-          return (
-            <div
-              key={stat.title}
-              onClick={() => router.push(stat.href)}
-              className="bg-white dark:!bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3 sm:p-4 hover:shadow-md transition cursor-pointer"
-            >
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className={`p-2 rounded-lg ${stat.color}`}>
-                  <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 truncate">{stat.title}</p>
-                  <p className={`text-sm sm:text-base md:text-xl font-bold mt-0.5 truncate ${isNegative ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-white'}`}>
-                    {stat.displayValue}
-                  </p>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* ✅ Debug: Show raw data */}
-      <div className="bg-white dark:!bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
-        <h3 className="font-semibold text-slate-900 dark:text-white text-sm mb-2">🔍 Debug: Sales Trend Data</h3>
-        <pre className="text-xs bg-slate-100 dark:bg-slate-700 p-2 rounded overflow-auto max-h-32">
-          {JSON.stringify(salesTrend, null, 2)}
-        </pre>
-        <h3 className="font-semibold text-slate-900 dark:text-white text-sm mt-4 mb-2">🔍 Debug: Top Products</h3>
-        <pre className="text-xs bg-slate-100 dark:bg-slate-700 p-2 rounded overflow-auto max-h-32">
-          {JSON.stringify(topProducts, null, 2)}
-        </pre>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
-        <div className="bg-white dark:!bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6">
-          <h3 className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base mb-4">Sales Trend</h3>
-          <div className="h-[200px] sm:h-[250px]">
-            <SalesTrendChart data={salesTrend} />
-          </div>
-        </div>
-
-        <div className="bg-white dark:!bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6">
-          <h3 className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base mb-4">Expenses Trend</h3>
-          <div className="h-[200px] sm:h-[250px]">
-            <ExpensesTrendChart data={expenseTrend} />
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
-        <div className="bg-white dark:!bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6">
-          <h3 className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base mb-4">Top Products</h3>
-          <div className="h-[200px] sm:h-[250px]">
-            <ProductSalesPieChart data={topProducts} />
-          </div>
-        </div>
-
-        <div className="bg-white dark:!bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6">
-          <h3 className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base mb-4">Profit vs Loss</h3>
-          <div className="h-[200px] sm:h-[250px]">
-            <ProfitLossChart profit={totalProfit} loss={loss} />
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={nextStep}
+          disabled={isLastStep}
+          className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          {isLastStep ? (
+            <>
+              <CheckIcon className="h-4 w-4" />
+              Done
+            </>
+          ) : (
+            <>
+              Next
+              <ArrowRightIcon className="h-4 w-4" />
+            </>
+          )}
+        </button>
       </div>
     </div>
   );

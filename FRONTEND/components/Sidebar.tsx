@@ -17,15 +17,26 @@ import {
   TruckIcon,
   CreditCardIcon,
 } from "@heroicons/react/24/outline";
-import { showWelcomeToast } from "@/lib/toast";
+import { useAuth } from "@/context/AuthContext";
 
-const menuItems = [
+// Role-based visibility
+const rolePermissions: Record<string, string[]> = {
+  Dashboard: ['admin', 'manager', 'cashier', 'viewer'],
+  Products: ['admin'],
+  Sales: ['admin', 'manager', 'cashier'],
+  Expenses: ['admin', 'viewer'],
+  Purchases: ['admin', 'manager'],
+  Customers: ['admin'],
+  Reports: ['admin', 'manager'],
+  Settings: ['admin', 'manager', 'cashier', 'viewer'],
+};
+
+const allMenuItems = [
   { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
   { name: "Products", href: "/dashboard/products", icon: CubeIcon },
   { name: "Sales", href: "/dashboard/sales", icon: CurrencyDollarIcon },
   { name: "Expenses", href: "/dashboard/expenses", icon: CreditCardIcon },
   { name: "Purchases", href: "/dashboard/purchases", icon: TruckIcon },
-  { name: "Customers", href: "/dashboard/customers", icon: UsersIcon },
   { name: "Reports", href: "/dashboard/reports", icon: ChartBarIcon },
   { name: "Settings", href: "/dashboard/settings", icon: Cog6ToothIcon },
 ];
@@ -45,40 +56,25 @@ export default function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     setIsMobileOpen(false);
   }, [pathname, setIsMobileOpen]);
 
   const isActive = (href: string) => {
-    if (href === "/dashboard") {
-      return pathname === href;
-    }
+    if (href === "/dashboard") return pathname === href;
     return pathname?.startsWith(href);
   };
 
-  const handleLogout = () => {
-    // ✅ Show logout toast before clearing
-    const user = localStorage.getItem('user');
-    let username = 'User';
-    try {
-      const userData = user ? JSON.parse(user) : null;
-      username = userData?.name || 'User';
-    } catch (e) {
-      // ignore
-    }
-    showWelcomeToast(`👋 Goodbye, ${username}!`, 'You have been logged out successfully.');
-    
-    // Clear storage
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("remembered_email");
-    localStorage.removeItem("remember_me");
-    
-    setTimeout(() => {
-      router.push("/");
-    }, 500);
-  };
+  const userRole = user?.role || 'viewer';
+
+  const menuItems = user
+    ? allMenuItems.filter(item => {
+        const allowed = rolePermissions[item.name] || [];
+        return allowed.includes(userRole);
+      })
+    : [];
 
   return (
     <>
@@ -168,6 +164,11 @@ export default function Sidebar({
               )}
             </Link>
           ))}
+          {menuItems.length === 0 && (
+            <div className="text-slate-400 text-sm text-center py-4">
+              No menu items available for your role.
+            </div>
+          )}
         </nav>
 
         <div className="absolute bottom-0 left-0 right-0 border-t border-slate-700/50 p-3 space-y-1.5 bg-slate-900/50 backdrop-blur-sm">
@@ -185,7 +186,7 @@ export default function Sidebar({
             )}
           </button>
           <button
-            onClick={handleLogout}
+            onClick={logout}
             className={`
               w-full flex items-center gap-3 px-2.5 py-2 rounded-lg
               text-red-400 hover:text-red-300 hover:bg-red-500/10

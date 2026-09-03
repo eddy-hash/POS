@@ -47,7 +47,7 @@ export default function SettingsPage() {
     try {
       const token = localStorage.getItem('access_token');
       if (!token) { router.push('/'); return; }
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
       const response = await fetch(`${API_URL}/users/profile`, {
         headers: { Authorization: `Bearer ${token}` },
       });

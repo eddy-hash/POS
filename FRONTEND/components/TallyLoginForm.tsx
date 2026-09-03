@@ -3,24 +3,26 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { 
-  EnvelopeIcon, 
-  LockClosedIcon, 
-  EyeIcon, 
+import {
+  EnvelopeIcon,
+  LockClosedIcon,
+  EyeIcon,
   EyeSlashIcon,
-  ArrowRightEndOnRectangleIcon 
+  ArrowRightEndOnRectangleIcon,
 } from '@heroicons/react/24/outline';
 
 interface TallyLoginFormProps {
   onSubmit: (email: string, password: string, rememberMe: boolean) => Promise<void>;
   loading?: boolean;
   error?: string | null;
+  fieldErrors?: { email?: string; password?: string };
 }
 
-export default function TallyLoginForm({ 
-  onSubmit, 
-  loading = false, 
+export default function TallyLoginForm({
+  onSubmit,
+  loading = false,
   error = null,
+  fieldErrors = {},
 }: TallyLoginFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,9 +33,7 @@ export default function TallyLoginForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
     if (isLoading || loading) return;
-    
     setIsLoading(true);
     try {
       await onSubmit(email, password, rememberMe);
@@ -46,20 +46,22 @@ export default function TallyLoginForm({
 
   const isSubmitting = isLoading || loading;
 
+  const hasError = (field: keyof typeof fieldErrors) => !!fieldErrors[field];
+
   return (
     <div className="flex justify-center items-center min-h-screen px-4 sm:px-6 py-8 bg-gradient-to-br from-slate-50 to-slate-100">
       <div className="w-full max-w-md bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 sm:p-10 border border-slate-100">
-        {/* Logo at Top Center - Inside Card */}
+        {/* Logo & Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             <div className="relative w-20 h-20 sm:w-24 sm:h-24">
-              <Image 
-                src="/Logo.png" 
-                alt="Logo" 
-                fill 
-                className="object-contain" 
-                priority 
-                sizes="(max-width: 640px) 80px, 96px" 
+              <Image
+                src="/Logo.png"
+                alt="Logo"
+                fill
+                className="object-contain"
+                priority
+                sizes="(max-width: 640px) 80px, 96px"
               />
             </div>
           </div>
@@ -67,6 +69,7 @@ export default function TallyLoginForm({
           <p className="text-slate-500 mt-2 text-sm">Sign in to your account</p>
         </div>
 
+        {/* General Error */}
         {error && (
           <div className="mb-6 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm text-center">
             {error}
@@ -74,6 +77,7 @@ export default function TallyLoginForm({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+          {/* Email */}
           <div className="space-y-1.5">
             <label htmlFor="email" className="text-sm font-medium text-slate-700">
               Email Address
@@ -85,14 +89,20 @@ export default function TallyLoginForm({
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@com"
-                className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition bg-white text-slate-900 placeholder:text-slate-400"
+                placeholder="name@company.com"
+                className={`w-full pl-10 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition bg-white text-slate-900 placeholder:text-slate-400 ${
+                  hasError('email') ? 'border-red-500' : 'border-slate-200'
+                }`}
                 required
                 disabled={isSubmitting}
               />
             </div>
+            {fieldErrors.email && (
+              <p className="text-red-500 text-xs mt-1">{fieldErrors.email}</p>
+            )}
           </div>
 
+          {/* Password */}
           <div className="space-y-1.5">
             <label htmlFor="password" className="text-sm font-medium text-slate-700">
               Password
@@ -104,8 +114,10 @@ export default function TallyLoginForm({
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="admin123"
-                className="w-full pl-10 pr-10 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition bg-white text-slate-900 placeholder:text-slate-400"
+                placeholder="Enter your password"
+                className={`w-full pl-10 pr-10 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition bg-white text-slate-900 placeholder:text-slate-400 ${
+                  hasError('password') ? 'border-red-500' : 'border-slate-200'
+                }`}
                 required
                 disabled={isSubmitting}
                 minLength={6}
@@ -118,8 +130,12 @@ export default function TallyLoginForm({
                 {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
               </button>
             </div>
+            {fieldErrors.password && (
+              <p className="text-red-500 text-xs mt-1">{fieldErrors.password}</p>
+            )}
           </div>
 
+          {/* Remember me & Forgot password */}
           <div className="flex items-center justify-between">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -136,6 +152,7 @@ export default function TallyLoginForm({
             </Link>
           </div>
 
+          {/* Submit Button */}
           <button
             type="submit"
             disabled={isSubmitting}
@@ -155,18 +172,13 @@ export default function TallyLoginForm({
           </button>
         </form>
 
+        {/* Register link */}
         <div className="mt-6 text-center">
           <p className="text-sm text-slate-600">
             Don't have an account?{' '}
             <Link href="/register" className="font-semibold text-blue-600 hover:text-blue-700">
               Create one now
             </Link>
-          </p>
-        </div>
-
-        <div className="mt-6 pt-6 border-t border-slate-200">
-          <p className="text-center text-xs text-slate-500">
-            Demo: <span className="font-mono bg-slate-100 px-2 py-0.5 rounded">admin@com</span> / <span className="font-mono bg-slate-100 px-2 py-0.5 rounded">admin123</span>
           </p>
         </div>
       </div>

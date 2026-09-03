@@ -47,7 +47,7 @@ export function ChartsGrid({ stats, formatCurrency }: ChartsGridProps) {
                 color: '#fff',
                 fontSize: '12px',
               }}
-              formatter={(value: number) => formatCurrency(value)}
+              formatter={(value: any) => formatCurrency(value)}
             />
             <Area
               type="monotone"
@@ -81,7 +81,7 @@ export function ChartsGrid({ stats, formatCurrency }: ChartsGridProps) {
                 outerRadius={70}
                 paddingAngle={2}
                 dataKey="sales"
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
                 labelLine={false}
                 fontSize={10}
               >
@@ -89,7 +89,7 @@ export function ChartsGrid({ stats, formatCurrency }: ChartsGridProps) {
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip formatter={(value: number) => formatCurrency(value)} />
+              <Tooltip formatter={(value: any) => formatCurrency(value)} />
               <Legend wrapperStyle={{ fontSize: '10px' }} />
             </PieChart>
           </ResponsiveContainer>

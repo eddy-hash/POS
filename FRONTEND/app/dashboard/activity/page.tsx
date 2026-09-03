@@ -30,7 +30,7 @@ export default function ActivityLogPage() {
     setLoading(true);
     try {
       const token = localStorage.getItem('access_token');
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
       const response = await fetch(`${API_URL}/users/activity`, {
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
       });
@@ -86,7 +86,7 @@ export default function ActivityLogPage() {
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center gap-3 mb-6">
           <button onClick={() => router.back()} className="p-2 rounded-lg outline-none hover:bg-slate-100 transition"><ArrowLeftIcon className="h-5 w-5 text-slate-600" /></button>
-          <div><h1 className="text-2xl font-bold text-slate-900">Activity Log</h1><p className="text-slate-500 text-sm mt-0.5">Real-time user activity tracking</p></div>
+          <div><h1 className="text-2xl font-bold text-slate-900">Activity</h1><p className="text-slate-500 text-sm mt-0.5">Real-time user activity tracking</p></div>
           <button onClick={fetchActivities} className="ml-auto px-4 py-2 text-sm bg-blue-600 text-white rounded-lg outline-none hover:bg-blue-700 transition flex items-center gap-2">
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
             Refresh

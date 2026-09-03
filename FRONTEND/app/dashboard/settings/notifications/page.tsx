@@ -74,7 +74,7 @@ export default function NotificationsPage() {
       setLoading(true);
       const token = localStorage.getItem('access_token');
       if (!token) { router.push('/'); return; }
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
       const response = await fetch(`${API_URL}/users/notifications/preferences`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -106,7 +106,7 @@ export default function NotificationsPage() {
     try {
       setSaving(true);
       const token = localStorage.getItem('access_token');
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
       const payload = preferences.reduce((acc, p) => ({ ...acc, [p.id]: p.enabled }), {});
 
       const response = await fetch(`${API_URL}/users/notifications/preferences`, {

@@ -31,6 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logoutTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hasLoggedOut = useRef(false);
 
+  // Load user from localStorage on mount
   useEffect(() => {
     try {
       const userStr = localStorage.getItem('user');
@@ -45,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Persist user to localStorage
   useEffect(() => {
     if (user) {
       localStorage.setItem('user', JSON.stringify(user));
@@ -53,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
+  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (logoutTimeoutRef.current) {
@@ -62,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
-    // ✅ Prevent multiple logout calls
+    // Prevent multiple logout calls
     if (isLoggingOut.current || hasLoggedOut.current) {
       console.log('⏳ Logout already in progress, skipping...');
       return;
@@ -73,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const username = user?.name || 'User';
     
-    // ✅ Show logout toast only once
+    // Show logout toast only once
     showLogoutToast(`Goodbye, ${username}!`, 'See you soon!');
 
     setUser(null);
@@ -82,12 +85,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('remembered_email');
     localStorage.removeItem('remember_me');
 
-    // ✅ Redirect to login
+    // Redirect to login after a short delay
     setTimeout(() => {
       router.push('/');
     }, 300);
 
-    // ✅ Reset flags after navigation
+    // Reset flags after navigation completes
     if (logoutTimeoutRef.current) {
       clearTimeout(logoutTimeoutRef.current);
     }
@@ -99,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, router]);
 
   const refreshUser = useCallback(async () => {
+    // Don't refresh if there's no user or we're already logging out
     if (!user || isLoggingOut.current || hasLoggedOut.current) {
       return;
     }
@@ -114,14 +118,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (res.ok) {
         const updated = await res.json();
-        setUser(updated);
+        // Only update state if we're still logged in (avoid race)
+        if (!isLoggingOut.current && !hasLoggedOut.current) {
+          setUser(updated);
+        }
       } else if (res.status === 401) {
+        // Only trigger logout if not already logging out
         if (!isLoggingOut.current && !hasLoggedOut.current) {
           logout();
         }
       }
     } catch (error) {
       console.error('Refresh failed:', error);
+      // ❌ Only show error toast if logout is NOT in progress
       if (!isLoggingOut.current && !hasLoggedOut.current) {
         showErrorToast('Could not refresh user data', 'Please try again later');
       }

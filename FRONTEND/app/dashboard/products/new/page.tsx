@@ -1,59 +1,45 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
-import { getCategories, createProduct, Category } from '@/lib/products';
+import { useProductForm } from './hooks/useProductForm';
+import { ProductBasicInfo } from './components/ProductBasicInfo';
+import { ProductPricing } from './components/ProductPricing';
+import { ProductReview } from './components/ProductReview';
+import { ProductNavigation } from './components/ProductNavigation';
 
 export default function NewProductPage() {
   const router = useRouter();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [form, setForm] = useState({
-    name: '',
-    description: '',
-    price: '',
-    costPrice: '',
-    quantity: '',
-    sku: '',
-    categoryId: '',
-  });
+  const {
+    categories,
+    loading,
+    error,
+    form,
+    setForm,
+    currentStep,
+    steps,
+    isLastStep,
+    canProceed,
+    nextStep,
+    prevStep,
+    handleSubmit,
+  } = useProductForm();
 
-  useEffect(() => {
-    loadCategories();
-  }, []);
-
-  const loadCategories = async () => {
-    try {
-      const data = await getCategories();
-      setCategories(data);
-    } catch (err) {
-      setError('Failed to load categories');
+  // ─── Memoize step content ──────────────────────────────────────
+  const stepContent = useMemo(() => {
+    switch (currentStep) {
+      case 0:
+        return <ProductBasicInfo form={form} setForm={setForm} categories={categories} />;
+      case 1:
+        return <ProductPricing form={form} setForm={setForm} />;
+      case 2:
+        return <ProductReview form={form} categories={categories} error={error} />;
+      default:
+        return null;
     }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    try {
-      await createProduct({
-        ...form,
-        price: parseFloat(form.price),
-        costPrice: form.costPrice ? parseFloat(form.costPrice) : null,
-        quantity: parseInt(form.quantity),
-        categoryId: parseInt(form.categoryId),
-        isActive: true,
-      });
-      router.push('/dashboard/products');
-    } catch (err: any) {
-      setError(err.message || 'Failed to create product');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [currentStep, form, categories, error]);
 
   return (
     <div className="max-w-3xl mx-auto dark:bg-slate-900 dark:text-white min-h-screen p-4">
@@ -66,125 +52,45 @@ export default function NewProductPage() {
         </button>
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Add New Product</h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">Create a new product in your inventory</p>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
+            Step {currentStep + 1} of {steps.length}: {steps[currentStep]}
+          </p>
         </div>
       </div>
 
-      {error && (
-        <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg outline-none p-4 text-red-600 dark:text-red-400 text-sm">
-          {error}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 space-y-5">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Product Name *</label>
-            <input
-              type="text"
-              required
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
-              placeholder="Enter product name"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Category *</label>
-            <select
-              required
-              value={form.categoryId}
-              onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-              className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-            >
-              <option value="">Select a category</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Description</label>
-          <textarea
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-            rows={3}
-            className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
-            placeholder="Enter product description"
+      <div className="flex gap-1 mb-6">
+        {steps.map((_, idx) => (
+          <div
+            key={idx}
+            className={`h-1 flex-1 rounded-full transition-all ${
+              idx <= currentStep ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'
+            }`}
           />
-        </div>
+        ))}
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Selling Price (TZS) *</label>
-            <input
-              type="number"
-              required
-              value={form.price}
-              onChange={(e) => setForm({ ...form, price: e.target.value })}
-              className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
-              placeholder="1000"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Cost Price (TZS)</label>
-            <input
-              type="number"
-              value={form.costPrice}
-              onChange={(e) => setForm({ ...form, costPrice: e.target.value })}
-              className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
-              placeholder="700"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Quantity *</label>
-            <input
-              type="number"
-              required
-              value={form.quantity}
-              onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-              className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
-              placeholder="100"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">SKU</label>
-            <input
-              type="text"
-              value={form.sku}
-              onChange={(e) => setForm({ ...form, sku: e.target.value })}
-              className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
-              placeholder="PROD001"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-          <button
-            type="submit"
-            disabled={loading}
-            className="flex-1 px-6 py-2.5 bg-blue-600 text-white rounded-lg outline-none hover:bg-blue-700 transition disabled:opacity-50 font-medium"
+      <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 min-h-[300px] overflow-hidden">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentStep}
+            initial={{ x: 30, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -30, opacity: 0 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
           >
-            {loading ? 'Creating...' : 'Create Product'}
-          </button>
-          <button
-            type="button"
-            onClick={() => router.push('/dashboard/products')}
-            className="px-6 py-2.5 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg outline-none hover:bg-slate-50 dark:hover:bg-slate-700 transition font-medium"
-          >
-            Cancel
-          </button>
-        </div>
+            {stepContent}
+          </motion.div>
+        </AnimatePresence>
+
+        <ProductNavigation
+          currentStep={currentStep}
+          totalSteps={steps.length}
+          canProceed={canProceed()}
+          loading={loading}
+          isLastStep={isLastStep}
+          onBack={prevStep}
+          onNext={nextStep}
+        />
       </form>
     </div>
   );

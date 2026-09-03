@@ -6,7 +6,6 @@ interface QuickInsightsProps {
   totalSales: number;
   totalRevenue: number;
   totalExpenses: number;
-  totalCustomers: number;
   totalProducts: number;
   profit: number;
   lowStockCount: number;
@@ -16,7 +15,6 @@ export default function QuickInsights({
   totalSales,
   totalRevenue,
   totalExpenses,
-  totalCustomers,
   totalProducts,
   profit,
   lowStockCount,
@@ -48,14 +46,7 @@ export default function QuickInsights({
       color: 'bg-yellow-50 dark:bg-yellow-900/20',
       textColor: 'text-yellow-600 dark:text-yellow-400',
       formatter: (v: number) => v.toString(),
-    },
-    {
-      title: 'Total Customers',
-      value: totalCustomers,
-      color: 'bg-purple-50 dark:bg-purple-900/20',
-      textColor: 'text-purple-600 dark:text-purple-400',
-      formatter: (v: number) => v.toString(),
-    },
+    }
   ];
 
   return (

@@ -1,5 +1,7 @@
 'use client';
 import { useState } from 'react';
+import { motion, AnimatePresence, easeOut } from 'framer-motion';
+import { ArrowLeftIcon, ArrowRightIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { useCurrencySafe } from '@/context/CurrencyContext';
 import { useReports } from './hooks/useReports';
 import { exportPDF, handlePrint } from './utils/exportUtils';
@@ -10,23 +12,120 @@ import MonthlyPerformance from './MonthlyPerformance';
 import RecentActivitySection from './RecentActivitySection';
 import QuickInsights from '@/components/reports/QuickInsights';
 
+const STEPS = ['Overview', 'Charts & Performance', 'Recent Activity'];
+
 export default function ReportsPage() {
   const [dateRange, setDateRange] = useState('month');
+  const [currentStep, setCurrentStep] = useState(0);
   const { stats, loading, refetch } = useReports(dateRange);
   const currencyContext = useCurrencySafe();
   const formatCurrency = currencyContext?.formatCurrency || 
     ((amount: number) => `TZS ${amount.toLocaleString()}`);
 
+  const isLastStep = currentStep === STEPS.length - 1;
+
+  const nextStep = () => {
+    if (isLastStep) return;
+    setCurrentStep((prev) => Math.min(prev + 1, STEPS.length - 1));
+  };
+
+  const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 0));
+
+  // ─── Loading State ──────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400" />
-      </div>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="flex items-center justify-center min-h-[400px]"
+      >
+        <div className="h-12 w-12 rounded-full border-2 border-slate-200 dark:border-slate-700 border-t-blue-600 dark:border-t-blue-400 animate-spin" />
+      </motion.div>
     );
   }
 
+  // ─── Page Container ────────────────────────────────────────────────
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.08,
+        delayChildren: 0.1,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: { duration: 0.3, ease: easeOut },
+    },
+  };
+
+  // ─── Step Content ──────────────────────────────────────────────────
+  const StepContent = () => {
+    switch (currentStep) {
+      case 0:
+        return (
+          <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
+            <motion.div variants={itemVariants}>
+              <StatsGrid stats={stats} formatCurrency={formatCurrency} />
+            </motion.div>
+            <motion.div variants={itemVariants}>
+              <QuickInsights
+                totalSales={stats.totalSales}
+                totalRevenue={stats.totalRevenue}
+                totalExpenses={stats.totalExpenses}
+                totalProducts={stats.totalProducts}
+                profit={stats.profit}
+                lowStockCount={stats.lowStockItems?.length || 0}
+              />
+            </motion.div>
+          </motion.div>
+        );
+      case 1:
+        return (
+          <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
+            <motion.div variants={itemVariants}>
+              <ChartsGrid stats={stats} formatCurrency={formatCurrency} />
+            </motion.div>
+            <motion.div variants={itemVariants}>
+              <MonthlyPerformance monthlyStats={stats.monthlyStats} formatCurrency={formatCurrency} />
+            </motion.div>
+          </motion.div>
+        );
+      case 2:
+        return (
+          <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
+            <motion.div variants={itemVariants}>
+              <RecentActivitySection
+                title="Recent Sales"
+                items={stats.recentSales}
+                type="sales"
+              />
+            </motion.div>
+            <motion.div variants={itemVariants}>
+              <RecentActivitySection
+                title="Recent Expenses"
+                items={stats.recentExpenses}
+                type="expenses"
+              />
+            </motion.div>
+          </motion.div>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
-    <div className="space-y-4 sm:space-y-6 dark:bg-slate-900 dark:text-white p-3 sm:p-4 md:p-6 lg:p-8 min-h-screen">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 lg:py-8 space-y-6 sm:space-y-8">
+      
+      {/* ─── Header (always visible) ───────────────────────────────── */}
       <ReportHeader
         dateRange={dateRange}
         onDateRangeChange={setDateRange}
@@ -34,36 +133,67 @@ export default function ReportsPage() {
         onExportPDF={() => exportPDF(dateRange)}
         onPrint={handlePrint}
       />
-      <StatsGrid stats={stats} formatCurrency={formatCurrency} />
-      <ChartsGrid stats={stats} formatCurrency={formatCurrency} />
-      
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
-        <MonthlyPerformance monthlyStats={stats.monthlyStats} formatCurrency={formatCurrency} />
-        <QuickInsights
-          totalSales={stats.totalSales}
-          totalRevenue={stats.totalRevenue}
-          totalExpenses={stats.totalExpenses}
-          totalCustomers={stats.totalCustomers}
-          totalProducts={stats.totalProducts}
-          profit={stats.profit}
-          lowStockCount={stats.lowStockItems?.length || 0}
-          formatCurrency={formatCurrency}
-        />
+
+      {/* ─── Progress Bar ───────────────────────────────────────────── */}
+      <div className="flex gap-1">
+        {STEPS.map((_, idx) => (
+          <div
+            key={idx}
+            className={`h-1 flex-1 rounded-full transition-all ${
+              idx <= currentStep ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'
+            }`}
+          />
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
-        <RecentActivitySection
-          title="Recent Sales"
-          items={stats.recentSales}
-          formatCurrency={formatCurrency}
-          type="sales"
-        />
-        <RecentActivitySection
-          title="Recent Expenses"
-          items={stats.recentExpenses}
-          formatCurrency={formatCurrency}
-          type="expenses"
-        />
+      {/* ─── Step Indicator ─────────────────────────────────────────── */}
+      <p className="text-sm text-slate-500 dark:text-slate-400">
+        Step {currentStep + 1} of {STEPS.length}: {STEPS[currentStep]}
+      </p>
+
+      {/* ─── Step Content (with transitions) ───────────────────────── */}
+      <div className="min-h-[400px]">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentStep}
+            initial={{ x: 30, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -30, opacity: 0 }}
+            transition={{ duration: 0.25, ease: easeOut }}
+          >
+            <StepContent />
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {/* ─── Navigation Buttons ────────────────────────────────────── */}
+      <div className="flex justify-between items-center gap-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+        <button
+          type="button"
+          onClick={prevStep}
+          disabled={currentStep === 0}
+          className="px-6 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Back
+        </button>
+        <button
+          type="button"
+          onClick={nextStep}
+          disabled={isLastStep}
+          className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          {isLastStep ? (
+            <>
+              <CheckIcon className="h-4 w-4" />
+              Done
+            </>
+          ) : (
+            <>
+              Next
+              <ArrowRightIcon className="h-4 w-4" />
+            </>
+          )}
+        </button>
       </div>
     </div>
   );
