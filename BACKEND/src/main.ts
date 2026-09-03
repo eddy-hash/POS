@@ -28,6 +28,22 @@ async function bootstrap() {
 
   app.use(helmet());
 
+  app.use((req, res, next) => {
+    const start = Date.now();
+    const originalEnd = res.end;
+    res.end = function (...args) {
+      const duration = Date.now() - start;
+      const statusCode = res.statusCode;
+      const method = req.method;
+      const url = req.originalUrl || req.url;
+      // Log to console – this goes to PM2 logs
+      console.log(`➡️ ${method} ${url} ${statusCode} - ${duration}ms`);
+      // Call the original end
+      originalEnd.apply(this, args);
+    };
+    next();
+  });
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: false,
@@ -36,7 +52,6 @@ async function bootstrap() {
       forbidUnknownValues: false,
       validationError: { target: false, value: true },
       exceptionFactory: (errors) => {
-        // Build field error object (field -> message)
         const fieldErrors = {};
         errors.forEach((error) => {
           if (error.constraints) {
@@ -51,8 +66,7 @@ async function bootstrap() {
           }
         });
 
-        // Keep console logs for debugging (optional)
-        console.log('🔴 ===== VALIDATION ERRORS =====');
+        console.log('🔴 VALIDATION ERRORS');
         errors.forEach((error) => {
           console.log(`❌ Property: ${error.property}`);
           console.log(`❌ Value: ${error.value}`);
@@ -68,11 +82,11 @@ async function bootstrap() {
           }
           console.log('---');
         });
-        console.log('🔴 =============================');
+        console.log('🔴 ===');
 
         return new BadRequestException({
           message: 'Validation failed',
-          errors: fieldErrors, // 👈 Now it's an object
+          errors: fieldErrors,
         });
       },
     }),
@@ -94,7 +108,7 @@ async function bootstrap() {
   setupSwagger(app);
 
   const port = process.env.PORT || 3001;
-  await app.listen(port, '0.0.0.0');
+  await app.listen(port, '127.0.0.1');
 
   logger.log(`✅ Application running on: http://localhost:${port}`);
   logger.log(`📚 API Docs: http://localhost:${port}/api-docs`);
