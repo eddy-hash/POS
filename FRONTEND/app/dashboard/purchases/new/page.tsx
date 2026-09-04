@@ -1,14 +1,16 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
+import { motion, AnimatePresence, easeOut } from 'framer-motion';
+import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { useProducts } from './hooks/useProducts';
 import { usePurchaseForm } from './hooks/usePurchaseForm';
-import { SupplierInfo } from './components/SupplierInfo';
-import { ProductSearch } from './components/ProductSearch';
-import { PurchaseItemsTable } from './components/PurchaseItemsTable';
-import { PurchaseSummary } from './components/PurchaseSummary';
+import { usePurchaseWizard } from './hooks/usePurchaseWizard';
+import { SupplierStep } from './components/SupplierStep';
+import { ProductsStep } from './components/ProductsStep';
+import { ReviewStep } from './components/ReviewStep';
+import { PurchaseNavigation } from './components/PurchaseNavigation';
 import ConfirmModal from '@/components/ConfirmModal';
 import SuccessModal from '@/components/SuccessModal';
 
@@ -29,6 +31,9 @@ export default function NewPurchasePage() {
     submitPurchase,
   } = usePurchaseForm();
 
+  const { currentStep, steps, isLastStep, isFirstStep, nextStep, prevStep, canProceed } =
+    usePurchaseWizard();
+
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [successOpen, setSuccessOpen] = useState(false);
 
@@ -45,6 +50,34 @@ export default function NewPurchasePage() {
     router.push('/dashboard/purchases');
   };
 
+  const stepContent = () => {
+    switch (currentStep) {
+      case 0:
+        return <SupplierStep supplier={supplier} setSupplier={setSupplier} notes={notes} setNotes={setNotes} />;
+      case 1:
+        return (
+          <ProductsStep
+            products={products}
+            items={items}
+            onAddProduct={addProduct}
+            onQuantityChange={updateQuantity}
+            onRemoveItem={removeItem}
+          />
+        );
+      case 2:
+        return (
+          <ReviewStep
+            totalAmount={totalAmount}
+            itemCount={items.length}
+            onConfirm={() => setConfirmOpen(true)}
+            submitting={submitting}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto p-4 dark:bg-slate-900 dark:text-white min-h-screen">
       <div className="flex items-center gap-3 mb-6">
@@ -53,36 +86,47 @@ export default function NewPurchasePage() {
         </button>
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">New Purchase</h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">Create a new purchase order</p>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
+            Step {currentStep + 1} of {steps.length}: {steps[currentStep]}
+          </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <SupplierInfo
-            supplier={supplier}
-            setSupplier={setSupplier}
-            notes={notes}
-            setNotes={setNotes}
+      {/* Progress Bar */}
+      <div className="flex gap-1 mb-6">
+        {steps.map((_, idx) => (
+          <div
+            key={idx}
+            className={`h-1 flex-1 rounded-full transition-all ${
+              idx <= currentStep ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'
+            }`}
           />
-          <ProductSearch products={products} onAddProduct={addProduct} />
-          <div className="bg-white dark:!bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-            <PurchaseItemsTable
-              items={items}
-              onQuantityChange={updateQuantity}
-              onRemoveItem={removeItem}
-            />
-          </div>
-        </div>
+        ))}
+      </div>
 
-        <div className="lg:col-span-1">
-          <PurchaseSummary
-            totalAmount={totalAmount}
-            itemCount={items.length}
-            onConfirm={() => setConfirmOpen(true)}
-            submitting={submitting}
-          />
-        </div>
+      {/* Step Content */}
+      <div className="bg-white dark:!bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 min-h-[300px] overflow-hidden">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentStep}
+            initial={{ x: 30, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -30, opacity: 0 }}
+            transition={{ duration: 0.25, ease: easeOut }}
+          >
+            {stepContent()}
+          </motion.div>
+        </AnimatePresence>
+
+        <PurchaseNavigation
+          currentStep={currentStep}
+          totalSteps={steps.length}
+          canProceed={canProceed(items, supplier)}
+          loading={submitting}
+          isLastStep={isLastStep}
+          onBack={prevStep}
+          onNext={isLastStep ? () => setConfirmOpen(true) : nextStep}
+        />
       </div>
 
       <ConfirmModal

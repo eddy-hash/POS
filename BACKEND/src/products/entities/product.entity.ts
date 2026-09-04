@@ -22,6 +22,10 @@ export class Product {
   @Column({ default: 0 })
   quantity: number;
 
+  // ─── 👇 ADD THIS LINE ───
+  @Column({ default: 5 })
+  reorderLevel: number;
+
   @Column({ nullable: true })
   description: string;
 

@@ -16,9 +16,11 @@ import { showErrorToast } from '@/lib/toast';
 import SuccessModal from '@/components/SuccessModal';
 import { useThemeSafe } from '@/context/ThemeContext';
 import { useCurrencySafe } from '@/context/CurrencyContext';
+import { useAuth } from '@/context/AuthContext';              // ← add
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { user, refreshUser } = useAuth();                     // ← use context instead of local state
   const themeContext = useThemeSafe();
   const isDark = themeContext?.isDark ?? false;
   const toggleTheme = themeContext?.toggleTheme || (() => {});
@@ -29,44 +31,20 @@ export default function SettingsPage() {
   const symbols = currencyContext?.symbols || {};
   const loading = currencyContext?.loading || false;
 
-  const [user, setUser] = useState<any>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState('');
   const [modalMessage, setModalMessage] = useState('');
   const [selectedCurrency, setSelectedCurrency] = useState(currency);
 
   useEffect(() => {
-    fetchUserProfile();
+    const token = localStorage.getItem('access_token');
+    if (!token) { router.push('/'); return; }
+    refreshUser();                                              // ← replaces fetchUserProfile
   }, []);
 
   useEffect(() => {
     setSelectedCurrency(currency);
   }, [currency]);
-
-  const fetchUserProfile = async () => {
-    try {
-      const token = localStorage.getItem('access_token');
-      if (!token) { router.push('/'); return; }
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
-      const response = await fetch(`${API_URL}/users/profile`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.status === 401) { localStorage.removeItem('access_token'); router.push('/'); return; }
-      if (!response.ok) throw new Error('Failed to fetch profile');
-      const data = await response.json();
-      const userData = data.data || data;
-      setUser({
-        id: userData.id,
-        name: userData.name || 'User',
-        email: userData.email || 'No email registered',
-        phone: userData.phone || '',
-        address: userData.address || '',
-        role: userData.role || 'viewer',
-      });
-    } catch (err: any) {
-      showErrorToast(err.message);
-    }
-  };
 
   const handleThemeToggle = () => {
     toggleTheme();
@@ -141,7 +119,7 @@ export default function SettingsPage() {
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">Manage your application preferences</p>
         </div>
-        <button onClick={fetchUserProfile} className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition text-sm text-slate-700 dark:text-slate-300">
+        <button onClick={refreshUser} className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition text-sm text-slate-700 dark:text-slate-300">
           <ArrowPathIcon className="h-4 w-4" />
           <span className="hidden xs:inline">Refresh</span>
         </button>
@@ -154,8 +132,8 @@ export default function SettingsPage() {
               <UserIcon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base truncate">{user.name}</p>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
+              <p className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base truncate">{user.name || 'User'}</p>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 truncate">{user.email || 'No email registered'}</p>
               {user.role && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 mt-1">
                   {user.role}

@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from './entities/product.entity';
 import { CurrencyService } from '../currency/currency.service';
+import { NotificationTriggersService } from '../notifications/notification-triggers.service';
 
 @Injectable()
 export class ProductsService {
@@ -12,6 +13,7 @@ export class ProductsService {
     @InjectRepository(Product)
     private productRepository: Repository<Product>,
     private currencyService: CurrencyService,
+    private notificationTriggers: NotificationTriggersService, // 👈 injected
   ) {}
 
   async create(createProductDto: any, userId: number): Promise<Product> {
@@ -25,7 +27,6 @@ export class ProductsService {
     createProductDto.isActive = true;
     createProductDto.userId = userId;
 
-    // ✅ Simple approach: create and save
     const product = new Product();
     Object.assign(product, createProductDto);
     
@@ -88,21 +89,36 @@ export class ProductsService {
     };
   }
 
-  async update(id: number, updateProductDto: any): Promise<Product> {
+  // ─── Update ──────────────────────────────────────────────────────
+  async update(id: number, updateProductDto: any, userId: number): Promise<Product> {
     const product = await this.productRepository.findOne({ where: { id } });
-
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
+    const oldQuantity = product.quantity;
     Object.assign(product, updateProductDto);
     const updatedProduct = await this.productRepository.save(product);
+
+    // 🔔 Check stock if quantity changed
+    if (oldQuantity !== updatedProduct.quantity) {
+      const threshold: number = updatedProduct.reorderLevel ?? 5; // ✅ properly typed
+      if (updatedProduct.quantity <= threshold) {
+        await this.notificationTriggers.onProductLowStock(
+          updatedProduct.userId,
+          updatedProduct.id,
+          updatedProduct.name,
+          updatedProduct.quantity,
+        );
+      }
+    }
+
     return updatedProduct;
   }
 
-  async remove(id: number): Promise<void> {
+  // ─── Delete ──────────────────────────────────────────────────────
+  async remove(id: number, userId: number): Promise<void> {
     const product = await this.productRepository.findOne({ where: { id } });
-
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
@@ -110,15 +126,47 @@ export class ProductsService {
     await this.productRepository.remove(product);
   }
 
+  // ─── Stock update (used by purchases and sales) ────────────────
   async updateStock(id: number, quantity: number): Promise<Product> {
     const product = await this.productRepository.findOne({ where: { id } });
-
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
+    const oldQuantity = product.quantity;
     product.quantity = (product.quantity || 0) + quantity;
     const updatedProduct = await this.productRepository.save(product);
+
+    // 🔔 Check stock after update
+    const threshold: number = updatedProduct.reorderLevel ?? 5;
+    if (updatedProduct.quantity <= threshold && oldQuantity !== updatedProduct.quantity) {
+      await this.notificationTriggers.onProductLowStock(
+        updatedProduct.userId,
+        updatedProduct.id,
+        updatedProduct.name,
+        updatedProduct.quantity,
+      );
+    }
+
     return updatedProduct;
+  }
+
+  // ─── Optional: Check all products for low stock ────────────────
+  async checkAllLowStock(): Promise<void> {
+    const products = await this.productRepository.find({
+      where: { isActive: true },
+    });
+
+    for (const product of products) {
+      const threshold: number = product.reorderLevel ?? 5;
+      if (product.quantity <= threshold) {
+        await this.notificationTriggers.onProductLowStock(
+          product.userId,
+          product.id,
+          product.name,
+          product.quantity,
+        );
+      }
+    }
   }
 }

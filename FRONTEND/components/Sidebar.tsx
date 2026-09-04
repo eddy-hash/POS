@@ -1,5 +1,5 @@
 'use client';
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
@@ -19,7 +19,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { useAuth } from "@/context/AuthContext";
 
-// Role-based visibility
+// ─── Role-based visibility (lowercase) ────────────────────────────
 const rolePermissions: Record<string, string[]> = {
   Dashboard: ['admin', 'manager', 'cashier', 'viewer'],
   Products: ['admin'],
@@ -56,8 +56,22 @@ export default function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { logout } = useAuth(); // only logout from context
+  const [localUser, setLocalUser] = useState(() => { const stored = localStorage.getItem("user"); return stored ? JSON.parse(stored) : null; });
 
+  // ─── Read user from localStorage (overrides context) ────────────
+  useEffect(() => {
+    const stored = localStorage.getItem('user');
+    if (stored) {
+      try {
+        setLocalUser(JSON.parse(stored));
+      } catch (e) {
+        // fallback
+      }
+    }
+  }, []);
+
+  // ─── Close mobile sidebar on navigation ──────────────────────────
   useEffect(() => {
     setIsMobileOpen(false);
   }, [pathname, setIsMobileOpen]);
@@ -67,9 +81,10 @@ export default function Sidebar({
     return pathname?.startsWith(href);
   };
 
-  const userRole = user?.role || 'viewer';
+  // ✅ Fix: Normalize role to lowercase for permission matching
+  const userRole = localUser?.role?.toLowerCase() || 'viewer';
 
-  const menuItems = user
+  const menuItems = localUser
     ? allMenuItems.filter(item => {
         const allowed = rolePermissions[item.name] || [];
         return allowed.includes(userRole);
@@ -78,12 +93,14 @@ export default function Sidebar({
 
   return (
     <>
+      {/* Mobile backdrop */}
       {isMobileOpen && (
         <div
           className="lg:hidden fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
+
       <aside
         className={`
           fixed left-0 top-0 h-screen z-50
@@ -99,6 +116,7 @@ export default function Sidebar({
           shadow-2xl shadow-slate-900/30
         `}
       >
+        {/* ─── Logo ──────────────────────────────────────────────────── */}
         <div
           className={`
             flex items-center gap-3 px-4 h-16
@@ -128,7 +146,31 @@ export default function Sidebar({
           )}
         </div>
 
-        <nav className="h-[calc(100vh-140px)] overflow-y-auto overflow-x-hidden py-3 px-2 space-y-0.5">
+        {/* ─── User Info (from localStorage) ────────────────────────── */}
+        {!isCollapsed && localUser && (
+          <div className="px-4 py-3 border-b border-slate-700/50">
+            <p className="text-white font-medium text-sm truncate">
+              {localUser.name || 'User'}
+            </p>
+            <p className="text-slate-400 text-xs truncate">
+              {localUser.email || 'No email registered'}
+            </p>
+            {localUser.role && (
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium mt-1 w-fit ${
+                  localUser.role === 'Admin'
+                    ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                    : 'bg-slate-500/20 text-slate-300 border border-slate-500/30'
+                }`}
+              >
+                {localUser.role}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* ─── Navigation ───────────────────────────────────────────── */}
+        <nav className="h-[calc(100vh-200px)] overflow-y-auto overflow-x-hidden py-3 px-2 space-y-0.5">
           {menuItems.map((item) => (
             <Link
               key={item.name}
@@ -171,6 +213,7 @@ export default function Sidebar({
           )}
         </nav>
 
+        {/* ─── Footer: Collapse & Logout ───────────────────────────── */}
         <div className="absolute bottom-0 left-0 right-0 border-t border-slate-700/50 p-3 space-y-1.5 bg-slate-900/50 backdrop-blur-sm">
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}

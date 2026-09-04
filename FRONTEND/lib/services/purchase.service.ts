@@ -1,5 +1,4 @@
-import axios from 'axios';
-import { getAuthToken } from '@/lib/auth';
+import { api } from '@/lib/services/api';
 
 export interface Purchase {
   id: number;
@@ -28,50 +27,29 @@ export type CreatePurchaseDto = Omit<Purchase, 'id' | 'createdAt' | 'purchaseNum
   items: Omit<PurchaseItem, 'id'>[];
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
-const api = axios.create({
-  baseURL: API_URL,
-  headers: { 'Content-Type': 'application/json' },
-});
-
-api.interceptors.request.use((config) => {
-  const token = getAuthToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-const extractData = (response: any): any => {
-  if (Array.isArray(response)) return response;
-  if (response && response.data && Array.isArray(response.data)) return response.data;
-  if (response && response.data && response.data.purchases && Array.isArray(response.data.purchases)) {
-    return response.data.purchases;
-  }
-  if (response && response.purchases && Array.isArray(response.purchases)) return response.purchases;
-  if (response && response.success && response.data && Array.isArray(response.data)) return response.data;
-  return [];
-};
-
 export const purchaseService = {
   getAll: async (): Promise<Purchase[]> => {
-    try {
-      const response = await api.get('/purchases');
-      return extractData(response.data);
-    } catch {
-      return [];
-    }
+    const token = localStorage.getItem('access_token');
+    const data = await api.get('/purchases', token);
+    // Handle both array and object responses
+    const purchasesArray = Array.isArray(data) ? data : (data?.data || data?.purchases || []);
+    return purchasesArray;
   },
+
   getOne: async (id: number): Promise<Purchase> => {
-    const response = await api.get(`/purchases/${id}`);
-    return response.data?.data ?? response.data;
+    const token = localStorage.getItem('access_token');
+    const data = await api.get(`/purchases/${id}`, token);
+    return data?.data || data;
   },
+
   create: async (data: CreatePurchaseDto): Promise<Purchase> => {
-    const response = await api.post('/purchases', data);
-    return response.data?.data ?? response.data;
+    const token = localStorage.getItem('access_token');
+    const result = await api.post('/purchases', data, token);
+    return result?.data || result;
   },
+
   delete: async (id: number): Promise<void> => {
-    await api.delete(`/purchases/${id}`);
+    const token = localStorage.getItem('access_token');
+    await api.del(`/purchases/${id}`, token);
   },
 };

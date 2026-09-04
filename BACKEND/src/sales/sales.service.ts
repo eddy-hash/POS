@@ -79,6 +79,7 @@ export class SalesService {
       await this.saleItemRepository.save(saleItem);
     }
 
+    // 🔔 Trigger notification
     await this.notificationTriggers.onSaleCreated(
       userId,
       savedSale.id,

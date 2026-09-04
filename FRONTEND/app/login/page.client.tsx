@@ -6,9 +6,11 @@ import { Toaster } from 'react-hot-toast';
 import TallyLoginForm from '@/components/TallyLoginForm';
 import { showWelcomeBackToast, showErrorToast } from '@/lib/toast';
 import { api } from '@/lib/services/api';
+import { useAuth } from '@/context/AuthContext';          // ← add
 
 export default function LoginPage() {
   const router = useRouter();
+  const { setUser } = useAuth();                            // ← add
   const [isLoading, setIsLoading] = useState(true);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -24,7 +26,7 @@ export default function LoginPage() {
   const handleLogin = async (email: string, password: string, rememberMe: boolean) => {
     setLoginError(null);
     setIsLoggingIn(true);
-    
+
     try {
       const data = await api.post('/auth/login', { email, password }, null);
 
@@ -33,6 +35,12 @@ export default function LoginPage() {
 
       if (token) {
         localStorage.setItem('access_token', token);
+
+        if (user) {
+          localStorage.setItem('user', JSON.stringify(user));  // ← add: persist user
+          setUser(user);                                        // ← add: sync context immediately
+        }
+
         if (rememberMe) {
           localStorage.setItem('remember_me', 'true');
         }
@@ -65,8 +73,8 @@ export default function LoginPage() {
   return (
     <>
       <Toaster position="bottom-center" />
-      <TallyLoginForm 
-        onSubmit={handleLogin} 
+      <TallyLoginForm
+        onSubmit={handleLogin}
         loading={isLoggingIn}
         error={loginError}
       />
