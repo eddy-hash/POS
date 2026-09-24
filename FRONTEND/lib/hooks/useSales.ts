@@ -52,6 +52,8 @@ export function useSales(options = { autoFetch: true, limit: 100 }) {
       }
       setInitialized(true);
     } catch (err: any) {
+      const status = (err as any)?.status ?? Number(err?.message?.match(/\d+/)?.[0]);
+      if (status === 401 || status === 403) return;
       setError(err.message || 'Failed to load sales');
       showErrorToast(err.message);
       setSales([]);
@@ -69,6 +71,8 @@ export function useSales(options = { autoFetch: true, limit: 100 }) {
       showSuccessToast('Sale added successfully');
       return newSale;
     } catch (err: any) {
+      const status = (err as any)?.status ?? Number(err?.message?.match(/\d+/)?.[0]);
+      if (status === 401 || status === 403) return;
       setError(err.message || 'Failed to create sale');
       showErrorToast(err.message);
       return null;
@@ -86,6 +90,8 @@ export function useSales(options = { autoFetch: true, limit: 100 }) {
       showSuccessToast('Sale deleted successfully');
       return true;
     } catch (err: any) {
+      const status = (err as any)?.status ?? Number(err?.message?.match(/\d+/)?.[0]);
+      if (status === 401 || status === 403) return;
       setError(err.message || 'Failed to delete sale');
       showErrorToast(err.message);
       return false;

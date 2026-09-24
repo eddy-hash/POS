@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getAuthToken } from './auth';
+import { getToken } from './auth-token';
 
 export interface Notification {
   id: number;
@@ -12,7 +13,7 @@ export interface Notification {
   createdAt: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -30,14 +31,13 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      const token = getAuthToken();
-      if (token) {
-        localStorage.removeItem('access_token');
-        if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-          window.location.href = '/';
-        }
-      }
+    // 401 → drop token so AuthContext can react; 403 → silently ignore.
+    // Never hard-redirect here — that wipes console logs and looks like a logout.
+    const status = error?.response?.status;
+    if (status === 401) {
+      localStorage.removeItem('access_token');
+      document.cookie = 'access_token=; path=/; max-age=0';
+      document.cookie = 'user_role=; path=/; max-age=0';
     }
     return Promise.reject(error);
   }
@@ -51,7 +51,7 @@ export const getNotifications = async (): Promise<{ notifications: Notification[
   }
 
   try {
-    const response = await api.get('/notifications');
+    const response = await api.get('/notifications', getToken());
     
     let data = response.data;
     if (data && data.data) {

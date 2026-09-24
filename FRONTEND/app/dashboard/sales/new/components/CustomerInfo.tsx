@@ -25,7 +25,6 @@ export function CustomerInfo({
             <UserIcon className="h-4 w-4 inline mr-1" /> Customer Name
           </label>
           <input
-            key = "customer-name"
             type="text"
             value={customerName}
             onChange={(e) => setCustomerName(e.target.value)}

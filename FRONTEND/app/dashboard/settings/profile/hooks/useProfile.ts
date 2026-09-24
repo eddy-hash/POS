@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { getToken } from '@/lib/auth-token';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/services/api';
 import { showSuccessToast, showErrorToast } from '@/lib/toast';
@@ -53,11 +54,15 @@ export function useProfile() {
     setSaving(true);
     try {
       const token = localStorage.getItem('access_token');
-      await api.put(`/users/${profile.id}`, {
-        name: updatedData.name,
-        phone: updatedData.phone,
-        address: updatedData.address,
-      }, token);
+      await api.put(
+        `/users/${profile.id}`,
+        {
+          name: updatedData.name,
+          phone: updatedData.phone,
+          address: updatedData.address,
+        },
+        getToken(),
+      );
       showSuccessToast('Profile updated successfully');
       setModalOpen(true);
     } catch (err: any) {

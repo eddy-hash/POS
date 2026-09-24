@@ -77,7 +77,8 @@ export function useExpenses(options: UseExpensesOptions = {}) {
       setExpenses(sorted.slice(0, limit));
       setInitialized(true);
     } catch (err: any) {
-      console.error('❌ [useExpenses] Error:', err);
+      const status = (err as any)?.status ?? Number(err?.message?.match(/\d+/)?.[0]);
+      if (status === 401 || status === 403) return;
       setError(err.message || 'Failed to load expenses');
       showErrorToast(err.message);
       setExpenses([]);
@@ -95,6 +96,8 @@ export function useExpenses(options: UseExpensesOptions = {}) {
       showSuccessToast('Expense added successfully');
       return newExpense;
     } catch (err: any) {
+      const status = (err as any)?.status ?? Number(err?.message?.match(/\d+/)?.[0]);
+      if (status === 401 || status === 403) return;
       setError(err.message || 'Failed to create expense');
       showErrorToast(err.message);
       return null;
@@ -112,6 +115,8 @@ export function useExpenses(options: UseExpensesOptions = {}) {
       showSuccessToast('Expense updated successfully');
       return updated;
     } catch (err: any) {
+      const status = (err as any)?.status ?? Number(err?.message?.match(/\d+/)?.[0]);
+      if (status === 401 || status === 403) return;
       setError(err.message || 'Failed to update expense');
       showErrorToast(err.message);
       return null;
@@ -129,6 +134,8 @@ export function useExpenses(options: UseExpensesOptions = {}) {
       showSuccessToast('Expense deleted successfully');
       return true;
     } catch (err: any) {
+      const status = (err as any)?.status ?? Number(err?.message?.match(/\d+/)?.[0]);
+      if (status === 401 || status === 403) return;
       setError(err.message || 'Failed to delete expense');
       showErrorToast(err.message);
       return false;

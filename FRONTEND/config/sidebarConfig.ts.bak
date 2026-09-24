@@ -1,0 +1,34 @@
+import {
+  HomeIcon,
+  CubeIcon,
+  CurrencyDollarIcon,
+  CreditCardIcon,
+  TruckIcon,
+  ChartBarIcon,
+  Cog6ToothIcon,
+  ShoppingBagIcon,
+  ArchiveBoxIcon,
+  BellIcon,
+} from '@heroicons/react/24/outline';
+import { PERMISSIONS, type Permission } from '@/constants/permissions';
+
+export interface SidebarItem {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  permission: Permission;
+}
+
+export const sidebarItems: SidebarItem[] = [
+  { name: 'Dashboard',     href: '/dashboard',              icon: HomeIcon,             permission: PERMISSIONS.VIEW_DASHBOARD },
+  { name: 'Point of Sale', href: '/dashboard/pos',          icon: ShoppingBagIcon,      permission: PERMISSIONS.VIEW_POS },
+  { name: 'Sales',         href: '/dashboard/sales',        icon: CurrencyDollarIcon,   permission: PERMISSIONS.VIEW_SALES },
+  { name: 'Products',      href: '/dashboard/products',     icon: CubeIcon,             permission: PERMISSIONS.VIEW_PRODUCTS },
+  { name: 'Inventory',     href: '/dashboard/inventory',    icon: ArchiveBoxIcon,       permission: PERMISSIONS.VIEW_INVENTORY },
+  { name: 'Suppliers',     href: '/dashboard/suppliers',    icon: TruckIcon,            permission: PERMISSIONS.VIEW_SUPPLIERS },
+  { name: 'Expenses',      href: '/dashboard/expenses',     icon: CreditCardIcon,       permission: PERMISSIONS.EXPENSE_READ },
+  { name: 'Purchases',     href: '/dashboard/purchases',    icon: TruckIcon,            permission: PERMISSIONS.PURCHASE_READ },
+  { name: 'Reports',       href: '/dashboard/reports',      icon: ChartBarIcon,         permission: PERMISSIONS.VIEW_REPORTS },
+  { name: 'Notifications', href: '/dashboard/notifications',icon: BellIcon,             permission: PERMISSIONS.VIEW_NOTIFICATIONS },
+  { name: 'Settings',      href: '/dashboard/settings',     icon: Cog6ToothIcon,        permission: PERMISSIONS.VIEW_SETTINGS },
+];

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getToken } from '@/lib/auth-token';
 import { getAuthToken } from '@/lib/auth';
 
 export interface Sale {
@@ -30,10 +31,9 @@ export type CreateSaleDto = Omit<Sale, 'id' | 'createdAt' | 'updatedAt' | 'saleN
   items: Omit<SaleItem, 'id'>[];
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
+// ✅ Use relative URL (nginx proxies to backend)
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: '',
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -47,16 +47,16 @@ api.interceptors.request.use((config) => {
 
 export const salesService = {
   getAll: async (): Promise<Sale[]> => {
-    const response = await api.get('/sales');
+    const response = await api.get('/sales', getToken());
     const data = response.data?.data ?? response.data;
     return Array.isArray(data) ? data : [];
   },
   getOne: async (id: number): Promise<Sale> => {
-    const response = await api.get(`/sales/${id}`);
+    const response = await api.get(`/sales/${id}`, getToken());
     return response.data?.data ?? response.data;
   },
   create: async (data: CreateSaleDto): Promise<Sale> => {
-    const response = await api.post('/sales', data);
+    const response = await api.post('/sales', data, getToken());
     return response.data?.data ?? response.data;
   },
   update: async (id: number, data: Partial<CreateSaleDto>): Promise<Sale> => {

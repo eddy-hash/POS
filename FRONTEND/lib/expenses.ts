@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getToken } from './auth-token';
 import { getAuthToken } from './auth';
 
 export interface Expense {
@@ -11,7 +12,7 @@ export interface Expense {
   updatedAt?: string;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -28,7 +29,7 @@ api.interceptors.request.use((config) => {
 
 export const getExpenses = async (): Promise<Expense[]> => {
   try {
-    const response = await api.get('/expenses');
+    const response = await api.get('/expenses', getToken());
     console.log('🔍 [getExpenses] Full response:', response.data);
     
     // Try multiple ways to extract the array
@@ -59,7 +60,7 @@ export const getExpenses = async (): Promise<Expense[]> => {
 };
 
 export const createExpense = async (expense: Omit<Expense, 'id'>): Promise<Expense> => {
-  const response = await api.post('/expenses', expense);
+  const response = await api.post('/expenses', expense, getToken());
   return response.data?.data ?? response.data;
 };
 

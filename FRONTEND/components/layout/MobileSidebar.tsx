@@ -16,27 +16,19 @@ import {
 } from '@heroicons/react/24/outline';
 import { useState, useEffect } from 'react';
 import { useThemeSafe } from '@/context/ThemeContext';
+import { usePermission } from '@/hooks/usePermission';
+import { sidebarItems } from '@/config/sidebarConfig';
 
 interface MobileSidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const navItems = [
-  { name: 'Dashboard', icon: HomeIcon, href: '/dashboard' },
-  { name: 'Products', icon: CubeIcon, href: '/dashboard/products' },
-  { name: 'Sales', icon: ShoppingBagIcon, href: '/dashboard/sales' },
-  { name: 'Expenses', icon: CreditCardIcon, href: '/dashboard/expenses' },
-  { name: 'Purchases', icon: TruckIcon, href: '/dashboard/purchases' },
-  { name: 'Customers', icon: UsersIcon, href: '/dashboard/customers' },
-  { name: 'Reports', icon: ChartBarIcon, href: '/dashboard/reports' },
-  { name: 'Settings', icon: Cog6ToothIcon, href: '/dashboard/settings' },
-];
-
 export default function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const theme = useThemeSafe();
+  const { hasPermission } = usePermission();
   const isDark = theme?.isDark || false;
 
   useEffect(() => {
@@ -44,6 +36,8 @@ export default function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
   }, []);
 
   if (!mounted) return null;
+
+  const menuItems = sidebarItems.filter(item => hasPermission(item.permission));
 
   return (
     <>
@@ -87,7 +81,7 @@ export default function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
           </div>
 
           <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-            {navItems.map((item) => {
+            {menuItems.map((item) => {
               const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
               return (
                 <Link

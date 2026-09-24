@@ -31,7 +31,6 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, isMobile }: Navbar
       '/dashboard/sales': 'Sales',
       '/dashboard/sales/new': 'New Sale',
       '/dashboard/purchases': 'Purchases',
-      '/dashboard/customers': 'Customers',
       '/dashboard/reports': 'Reports',
       '/dashboard/settings': 'Settings',
     };

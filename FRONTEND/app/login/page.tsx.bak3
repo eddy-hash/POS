@@ -1,0 +1,215 @@
+'use client';
+export const dynamic = "force-dynamic";
+
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { Toaster } from 'react-hot-toast';
+import TallyLoginForm from '@/components/TallyLoginForm';
+import { showWelcomeBackToast, showErrorToast } from '@/lib/toast';
+import { api } from '@/lib/services/api';
+import { useAuth } from '@/context/AuthContext';
+
+interface ApiError extends Error {
+  fieldErrors?: Record<string, string>;
+}
+
+function isApiError(error: unknown): error is ApiError {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'fieldErrors' in error &&
+    typeof (error as ApiError).fieldErrors === 'object'
+  );
+}
+
+const DBG = '[LOGIN]';
+const dbg = (...a: any[]) => console.log(DBG, ...a);
+const warn = (...a: any[]) => console.warn(DBG, ...a);
+const err = (...a: any[]) => console.error(DBG, ...a);
+
+function dumpStorage(label: string) {
+  try {
+    const t = localStorage.getItem('access_token');
+    dbg(`── storage @ ${label} ──`);
+    dbg('  access_token:', t ? `present (${t.length} chars)` : 'MISSING');
+    dbg('  user:', localStorage.getItem('user'));
+    dbg('  cookies:', document.cookie);
+    dbg('  path:', window.location.pathname + window.location.search);
+  } catch (e) {
+    err('dumpStorage failed:', e);
+  }
+}
+
+export default function LoginPage() {
+  const router = useRouter();
+  const { setUser } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    dbg('════════ LoginPage MOUNTED ════════');
+    dumpStorage('on mount');
+    isMounted.current = true;
+
+    const origRemove = Storage.prototype.removeItem;
+    Storage.prototype.removeItem = function (k: string) {
+      if (k === 'access_token' || k === 'user') {
+        warn(`🗑  removeItem("${k}") called`);
+        warn(new Error().stack);
+      }
+      return origRemove.apply(this, arguments as any);
+    };
+
+    const origPush = history.pushState;
+    const origReplace = history.replaceState;
+    history.pushState = function (...a: any[]) {
+      dbg('➡️  pushState →', a[2]);
+      return origPush.apply(this, a as any);
+    };
+    history.replaceState = function (...a: any[]) {
+      dbg('➡️  replaceState →', a[2]);
+      return origReplace.apply(this, a as any);
+    };
+
+    return () => {
+      dbg('════════ LoginPage UNMOUNTED ════════');
+      dumpStorage('on unmount');
+      isMounted.current = false;
+      Storage.prototype.removeItem = origRemove;
+      history.pushState = origPush;
+      history.replaceState = origReplace;
+    };
+  }, []);
+
+  useEffect(() => {
+    dbg('▶ auto-redirect effect running');
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const next = params.get('next');
+      const token = localStorage.getItem('access_token');
+      dbg('  next param:', next, '| token:', token ? 'present' : 'missing');
+      if (token && !next) {
+        dbg('  → redirecting to /dashboard');
+        router.replace('/dashboard');
+      } else {
+        dbg('  → staying on login');
+      }
+    } catch (e) {
+      err('auto-redirect failed:', e);
+    } finally {
+      if (isMounted.current) setIsLoading(false);
+    }
+  }, [router]);
+
+  const handleLogin = useCallback(
+    async (email: string, password: string, rememberMe: boolean) => {
+      dbg('════════ handleLogin CALLED ════════', { email, rememberMe });
+      dumpStorage('before POST');
+      if (isLoggingIn) { warn('already logging in'); return; }
+
+      setLoginError(null);
+      setFieldErrors({});
+      setIsLoggingIn(true);
+
+      try {
+        dbg('📡 POST /auth/login …');
+        const response = await api.post('/auth/login', { email, password }, null);
+        dbg('📥 response:', response);
+
+        const payload =
+          (response as any)?.data?.data ??
+          (response as any)?.data ??
+          response;
+
+        dbg('🔑 payload keys:', Object.keys(payload || {}));
+        const token = payload?.access_token;
+        const user  = payload?.user;
+        dbg('🔑 token?', !!token, '| user?', !!user, '| user:', user);
+
+        if (!token) throw new Error('No access token received');
+
+        dbg(`💾 setItem access_token (len ${token.length})`);
+        localStorage.setItem('access_token', token);
+        dumpStorage('after setItem access_token');
+
+        const oneDay = 60 * 60 * 24;
+        document.cookie = `access_token=${token}; path=/; max-age=${oneDay}; SameSite=Lax`;
+        if (user?.role) document.cookie = `user_role=${user.role}; path=/; max-age=${oneDay}; SameSite=Lax`;
+        if (user?.name) document.cookie = `user_name=${encodeURIComponent(user.name)}; path=/; max-age=${oneDay}; SameSite=Lax`;
+        dumpStorage('after cookie writes');
+
+        if (user) {
+          dbg('💾 setItem user');
+          localStorage.setItem('user', JSON.stringify(user));
+        }
+
+        dbg('📦 setUser(context)');
+        setUser(user);
+
+        if (rememberMe) localStorage.setItem('remember_me', 'true');
+        else localStorage.removeItem('remember_me');
+
+        dbg('✅ login done — scheduling redirect');
+        showWelcomeBackToast(user?.name || 'User');
+
+        const params = new URLSearchParams(window.location.search);
+        const next = params.get('next') || '/dashboard';
+        dbg('🎯 will navigate to:', next);
+
+        setTimeout(() => {
+          dbg('🎯 setTimeout fired — navigating to', next);
+          dumpStorage('right before router.replace');
+          router.replace(next);
+        }, 500);
+      } catch (error: unknown) {
+        err('❌ LOGIN FAILED:', error);
+        let raw = 'Invalid email or password';
+        if (isApiError(error) && error.fieldErrors) {
+          setFieldErrors(error.fieldErrors);
+          raw = Object.values(error.fieldErrors)[0] || raw;
+        } else if (error instanceof Error && error.message) {
+          raw = error.message;
+        }
+        const lower = raw.toLowerCase();
+        const friendly =
+          lower.includes('invalid') || lower.includes('not found') ||
+          lower.includes('credential') || lower.includes('unauthorized')
+            ? 'Incorrect email or password. Please try again.'
+            : raw;
+        setLoginError(friendly);
+        setFieldErrors({ email: friendly, password: friendly });
+        showErrorToast('Login failed', friendly);
+      } finally {
+        dbg('🏁 finally isMounted:', isMounted.current);
+        if (isMounted.current) setIsLoggingIn(false);
+      }
+    },
+    [isLoggingIn, router, setUser]
+  );
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <Toaster position="bottom-center" />
+      <TallyLoginForm
+        onSubmit={handleLogin}
+        loading={isLoggingIn}
+        error={loginError}
+        fieldErrors={fieldErrors}
+      />
+    </>
+  );
+}

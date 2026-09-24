@@ -14,9 +14,11 @@ export async function exportPDF(dateRange: string, currency: string = 'TZS') {
 
   try {
     //  Relative URL – goes through Nginx (port 80)
-    const res = await fetch(`/reports/stats?range=${dateRange}&currency=${currency}`, {
+    const res = await fetch(`/api/reports/stats?range=${dateRange}&currency=${currency}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
+    if (res.status === 403 || res.status === 401) return;   // silently skip
+    if (res.status === 403 || res.status === 401) return;   // silently skip
     if (!res.ok) throw new Error('Failed to fetch report data');
     const result = await res.json();
     const stats = result.data || result;

@@ -24,6 +24,8 @@ export function usePurchases() {
     } catch (err: any) {
       const message = err?.message || 'Failed to load purchases';
       setError(message);
+      const status = (err as any)?.status ?? Number(err?.message?.match(/\d+/)?.[0]);
+      if (status === 401 || status === 403) { setPurchases([]); return; }
       showErrorToast(message);
       setPurchases([]);
     } finally {

@@ -53,12 +53,16 @@ export default function NewSalePage() {
   const isLastStep = currentStep === STEPS.length - 1;
   const canProceed = () => {
     if (currentStep === 0) return saleItems.length > 0;
-    if (currentStep === 1) return customerName.trim().length > 0; // optional
+    if (currentStep === 1) return customerName.trim().length > 0;
     return true;
   };
 
-  // ─── Step Content ────────────────────────────────────────────────
-  const StepContent = () => {
+  // ─── Step content as a RENDER FUNCTION (not a component) ─────────
+  // Calling this inline (`{renderStepContent()}`) keeps React from
+  // treating it as a new component type on every render — which was
+  // causing the whole subtree to unmount/remount on every keystroke,
+  // losing input focus.
+  const renderStepContent = () => {
     switch (currentStep) {
       case 0:
         return (
@@ -133,8 +137,7 @@ export default function NewSalePage() {
       <Toaster position="bottom-center" />
       <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-4 sm:p-6 md:p-8">
         <div className="max-w-4xl mx-auto space-y-6">
-
-          {/* ─── Header ──────────────────────────────────────────────── */}
+          {/* Header */}
           <div className="flex items-center gap-3 pb-4 border-b border-slate-200 dark:border-slate-800">
             <button
               onClick={() => router.back()}
@@ -151,7 +154,7 @@ export default function NewSalePage() {
             </div>
           </div>
 
-          {/* ─── Progress Bar ────────────────────────────────────────── */}
+          {/* Progress Bar */}
           <div className="flex gap-1">
             {STEPS.map((_, idx) => (
               <div
@@ -163,22 +166,22 @@ export default function NewSalePage() {
             ))}
           </div>
 
-          {/* ─── Step Content (with Framer Motion) ───────────────────── */}
+          {/* Step Content (with Framer Motion) */}
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm min-h-[300px] overflow-hidden">
-            <AnimatePresence mode="wait">
+            <AnimatePresence mode="wait" initial={false}>
               <motion.div
-                key={currentStep}
+                key={`step-${currentStep}`}
                 initial={{ x: 30, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 exit={{ x: -30, opacity: 0 }}
                 transition={{ duration: 0.25, ease: 'easeOut' }}
               >
-                <StepContent />
+                {renderStepContent()}
               </motion.div>
             </AnimatePresence>
           </div>
 
-          {/* ─── Navigation Buttons ──────────────────────────────────── */}
+          {/* Navigation Buttons */}
           <div className="flex justify-between items-center gap-4 pt-4 border-t border-slate-200 dark:border-slate-700">
             <button
               onClick={prevStep}

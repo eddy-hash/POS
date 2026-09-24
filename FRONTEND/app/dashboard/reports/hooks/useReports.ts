@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { showErrorToast } from '@/lib/toast';
+import { useGuardedFetch } from '@/hooks/useGuardedFetch';
+import { PERMISSIONS } from '@/constants/permissions';
 
 interface ReportStats {
   totalSales: number;
@@ -36,10 +38,12 @@ const defaultStats: ReportStats = {
 
 export function useReports(dateRange: string) {
   const router = useRouter();
+  const { shouldFetch } = useGuardedFetch(PERMISSIONS.VIEW_REPORTS);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<ReportStats>(defaultStats);
 
   const fetchReports = async () => {
+    if (!shouldFetch) { setLoading(false); return; }
     try {
       setLoading(true);
       const token = localStorage.getItem('access_token');
@@ -56,6 +60,8 @@ export function useReports(dateRange: string) {
         router.push('/');
         return;
       }
+      if (res.status === 403) { setLoading(false); return; }   // silently skip
+      if (res.status === 403) { setLoading(false); return; }   // silently skip
       if (!res.ok) throw new Error('Failed to fetch reports');
       const data = await res.json();
       const reportData = data.data || data;

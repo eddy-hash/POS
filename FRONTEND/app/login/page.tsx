@@ -1,11 +1,11 @@
 'use client';
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Toaster } from 'react-hot-toast';
 import TallyLoginForm from '@/components/TallyLoginForm';
-import { showWelcomeBackToast, showErrorToast } from '@/lib/toast';   
+import { showWelcomeBackToast, showErrorToast } from '@/lib/toast';
 import { api } from '@/lib/services/api';
 import { useAuth } from '@/context/AuthContext';
 
@@ -40,12 +40,14 @@ export default function LoginPage() {
 
   useEffect(() => {
     try {
+      const params = new URLSearchParams(window.location.search);
+      const next = params.get('next');
       const token = localStorage.getItem('access_token');
-      if (token) {
+      if (token && !next) {
         router.replace('/dashboard');
       }
-    } catch (error) {
-      console.error('Failed to check auth:', error);
+    } catch {
+      // ignore
     } finally {
       if (isMounted.current) {
         setIsLoading(false);
@@ -64,38 +66,57 @@ export default function LoginPage() {
       try {
         const response = await api.post('/auth/login', { email, password }, null);
 
-        const token = response?.data?.access_token || response?.access_token;
-        const user = response?.data?.user || response?.user;
+        const payload =
+          (response as any)?.data?.data ??
+          (response as any)?.data ??
+          response;
 
-        if (!token) {
-          throw new Error('No access token received');
-        }
+        const token = payload?.access_token;
+        const user = payload?.user;
+
+        if (!token) throw new Error('No access token received');
 
         localStorage.setItem('access_token', token);
+
+        const oneDay = 60 * 60 * 24;
+        document.cookie = `access_token=${token}; path=/; max-age=${oneDay}; SameSite=Lax`;
+        if (user?.role) {
+          document.cookie = `user_role=${user.role}; path=/; max-age=${oneDay}; SameSite=Lax`;
+        }
+        if (user?.name) {
+          document.cookie = `user_name=${encodeURIComponent(user.name)}; path=/; max-age=${oneDay}; SameSite=Lax`;
+        }
+
+        if (user) localStorage.setItem('user', JSON.stringify(user));
         setUser(user);
 
-        if (rememberMe) {
-          localStorage.setItem('remember_me', 'true');
-        } else {
-          localStorage.removeItem('remember_me');
-        }
+        if (rememberMe) localStorage.setItem('remember_me', 'true');
+        else localStorage.removeItem('remember_me');
 
         showWelcomeBackToast(user?.name || 'User');
-        setTimeout(() => router.push('/dashboard'), 500);
-      } catch (error: unknown) {
-        console.error('Login error:', error);
 
+        const params = new URLSearchParams(window.location.search);
+        const next = params.get('next') || '/dashboard';
+        setTimeout(() => router.replace(next), 500);
+      } catch (error: unknown) {
+        let raw = 'Invalid email or password';
         if (isApiError(error) && error.fieldErrors) {
           setFieldErrors(error.fieldErrors);
-        } else {
-          const message = error instanceof Error ? error.message : 'Invalid email or password';
-          if (message.toLowerCase().includes('not found') || message.toLowerCase().includes('invalid')) {
-            setFieldErrors({ email: 'Incorrect email or password. Please try again.' });
-          } else {
-            setLoginError(message);
-            showErrorToast(message);
-          }
+          raw = Object.values(error.fieldErrors)[0] || raw;
+        } else if (error instanceof Error && error.message) {
+          raw = error.message;
         }
+        const lower = raw.toLowerCase();
+        const friendly =
+          lower.includes('invalid') ||
+          lower.includes('not found') ||
+          lower.includes('credential') ||
+          lower.includes('unauthorized')
+            ? 'Incorrect email or password. Please try again.'
+            : raw;
+        setLoginError(friendly);
+        setFieldErrors({ email: friendly, password: friendly });
+        showErrorToast('Login failed', friendly);
       } finally {
         if (isMounted.current) {
           setIsLoggingIn(false);
@@ -123,6 +144,7 @@ export default function LoginPage() {
         onSubmit={handleLogin}
         loading={isLoggingIn}
         error={loginError}
+        fieldErrors={fieldErrors}
       />
     </>
   );

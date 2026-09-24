@@ -78,6 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setUser(null);
     localStorage.removeItem('access_token');
+    // Clear auth cookies so middleware won't think we're still logged in
+    document.cookie = 'access_token=; path=/; max-age=0';
+    document.cookie = 'user_role=; path=/; max-age=0';
+    document.cookie = 'user_name=; path=/; max-age=0';
     localStorage.removeItem('user');
     localStorage.removeItem('remembered_email');
     localStorage.removeItem('remember_me');
@@ -114,21 +118,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (res.ok) {
         const data = await res.json();
-        // ✅ Handle nested response: data.data.user or data.data
-        let userData = data;
-        if (data?.data?.user) {
-          userData = data.data.user;
-        } else if (data?.data) {
-          userData = data.data;
+
+        // Unwrap the double-nested ResponseInterceptor envelope
+        let fresh: any = data;
+        let depth = 0;
+        while (fresh && typeof fresh === 'object' && 'data' in fresh && depth < 5) {
+          const inner = (fresh as any).data;
+          if (!inner || typeof inner !== 'object') break;
+          fresh = inner;
+          depth++;
         }
 
         if (!isLoggingOut.current && !hasLoggedOut.current) {
-          setUser(userData);
-          // ✅ Update localStorage to keep in sync
-          localStorage.setItem('user', JSON.stringify(userData));
+          // ⚠️ /users/profile is a slim payload (no role/role_id).
+          // MERGE so we never lose role / role_id / isAdmin from login.
+          setUser((prev) => {
+            const merged = { ...(prev || {}), ...fresh };
+            try {
+              localStorage.setItem('user', JSON.stringify(merged));
+            } catch {}
+            return merged;
+          });
         }
       } else if (res.status === 401) {
-        if (!isLoggingOut.current && !hasLoggedOut.current) {
+        // Only log out if the token is actually gone/expired.
+        // A transient 401 shouldn't nuke an active session.
+        const stillHasToken = !!localStorage.getItem('access_token');
+        if (!stillHasToken && !isLoggingOut.current && !hasLoggedOut.current) {
           logout();
         }
       }

@@ -53,13 +53,6 @@ export function StatCards({ stats, displayRevenue, displayExpenses, displayProfi
       href: '/dashboard/reports',
     },
     {
-      title: 'Total Customers',
-      displayValue: stats.totalCustomers?.toLocaleString() || '0',
-      icon: UsersIcon,
-      color: 'bg-yellow-500',
-      href: '/dashboard/customers',
-    },
-    {
       title: 'Total Products',
       displayValue: stats.totalProducts?.toLocaleString() || '0',
       icon: CubeIcon,

@@ -18,28 +18,8 @@ import {
   CreditCardIcon,
 } from "@heroicons/react/24/outline";
 import { useAuth } from "@/context/AuthContext";
-
-// ─── Role-based visibility (lowercase) ────────────────────────────
-const rolePermissions: Record<string, string[]> = {
-  Dashboard: ['admin', 'manager', 'cashier', 'viewer'],
-  Products: ['admin'],
-  Sales: ['admin', 'manager', 'cashier'],
-  Expenses: ['admin', 'viewer'],
-  Purchases: ['admin', 'manager'],
-  Customers: ['admin'],
-  Reports: ['admin', 'manager'],
-  Settings: ['admin', 'manager', 'cashier', 'viewer'],
-};
-
-const allMenuItems = [
-  { name: "Dashboard", href: "/dashboard", icon: HomeIcon },
-  { name: "Products", href: "/dashboard/products", icon: CubeIcon },
-  { name: "Sales", href: "/dashboard/sales", icon: CurrencyDollarIcon },
-  { name: "Expenses", href: "/dashboard/expenses", icon: CreditCardIcon },
-  { name: "Purchases", href: "/dashboard/purchases", icon: TruckIcon },
-  { name: "Reports", href: "/dashboard/reports", icon: ChartBarIcon },
-  { name: "Settings", href: "/dashboard/settings", icon: Cog6ToothIcon },
-];
+import { usePermission } from "@/hooks/usePermission";
+import { sidebarItems } from "@/config/sidebarConfig";
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -56,7 +36,8 @@ export default function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { logout } = useAuth(); // only logout from context
+  const { logout } = useAuth();
+  const { hasPermission } = usePermission();
   const [localUser, setLocalUser] = useState(() => { const stored = localStorage.getItem("user"); return stored ? JSON.parse(stored) : null; });
 
   // ─── Read user from localStorage (overrides context) ────────────
@@ -81,15 +62,7 @@ export default function Sidebar({
     return pathname?.startsWith(href);
   };
 
-  // ✅ Fix: Normalize role to lowercase for permission matching
-  const userRole = localUser?.role?.toLowerCase() || 'viewer';
-
-  const menuItems = localUser
-    ? allMenuItems.filter(item => {
-        const allowed = rolePermissions[item.name] || [];
-        return allowed.includes(userRole);
-      })
-    : [];
+  const menuItems = sidebarItems.filter(item => hasPermission(item.permission));
 
   return (
     <>

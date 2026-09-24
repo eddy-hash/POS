@@ -2,6 +2,8 @@
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import PermissionGate from '@/components/auth/PermissionGate';
+import { PERMISSIONS } from '@/constants/permissions';
 
 interface SalesRowProps {
   sale: any;
@@ -62,13 +64,15 @@ export function SalesRow({ sale, index, onDelete, formatCurrency }: SalesRowProp
           >
             <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </button>
-          <button
-            onClick={() => onDelete(sale.id)}
-            className="p-1.5 sm:p-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
-            aria-label={`Delete sale ${sale.saleNumber}`}
-          >
-            <TrashIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-          </button>
+          <PermissionGate permission={PERMISSIONS.SALE_DELETE}>
+            <button
+              onClick={() => onDelete(sale.id)}
+              className="p-1.5 sm:p-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+              aria-label={`Delete sale ${sale.saleNumber}`}
+            >
+              <TrashIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            </button>
+          </PermissionGate>
         </div>
       </td>
     </motion.tr>

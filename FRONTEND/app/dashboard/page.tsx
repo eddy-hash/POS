@@ -72,7 +72,7 @@ export default function DashboardPage() {
   const expenseTrend = stats.expenseTrend || [];
 
   // ─── Step Content ──────────────────────────────────────────────────
-  const StepContent = () => {
+  const renderStepContent = () => {
     switch (currentStep) {
       case 0:
         return (

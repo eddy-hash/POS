@@ -2,6 +2,8 @@
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import PermissionGate from '@/components/auth/PermissionGate';
+import { PERMISSIONS } from '@/constants/permissions';
 
 interface PurchasesRowProps {
   purchase: any;
@@ -47,20 +49,24 @@ export function PurchasesRow({ purchase, index, onDelete, displayTotal, getStatu
       </td>
       <td className="px-3 sm:px-4 py-3 text-right">
         <div className="flex items-center justify-end gap-1 sm:gap-1.5">
-          <button
-            onClick={() => router.push(`/dashboard/purchases/${purchase.id}/edit`)}
-            className="p-1.5 sm:p-2 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
-            aria-label={`Edit purchase ${purchase.orderNumber}`}
-          >
-            <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-          </button>
-          <button
-            onClick={() => onDelete(purchase.id)}
-            className="p-1.5 sm:p-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
-            aria-label={`Delete purchase ${purchase.orderNumber}`}
-          >
-            <TrashIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-          </button>
+          <PermissionGate permission={PERMISSIONS.PURCHASE_CREATE}>
+            <button
+              onClick={() => router.push(`/dashboard/purchases/${purchase.id}/edit`)}
+              className="p-1.5 sm:p-2 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"
+              aria-label={`Edit purchase ${purchase.orderNumber}`}
+            >
+              <PencilIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            </button>
+          </PermissionGate>
+          <PermissionGate permission={PERMISSIONS.PURCHASE_DELETE}>
+            <button
+              onClick={() => onDelete(purchase.id)}
+              className="p-1.5 sm:p-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+              aria-label={`Delete purchase ${purchase.orderNumber}`}
+            >
+              <TrashIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            </button>
+          </PermissionGate>
         </div>
       </td>
     </motion.tr>

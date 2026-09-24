@@ -31,10 +31,20 @@ export interface DashboardStats {
 export const fetchDashboardStats = async (currency?: string): Promise<DashboardStats> => {
   try {
     const url = currency ? `/dashboard/stats?currency=${currency}` : '/dashboard/stats';
-    const response = await api.get(url);
-    
-    // ✅ Extract data from nested response structure
-    const data = response.data || response;
+    const token = typeof window !== 'undefined'
+      ? localStorage.getItem('access_token')
+      : null;
+    const response = await api.get(url, token);
+
+    // Unwrap double-nested ResponseInterceptor envelope if present
+    // Shape: { success, data: { success, data: {...} } }
+    let payload: any = response;
+    let depth = 0;
+    while (payload && typeof payload === 'object' && 'data' in payload && depth < 5) {
+      payload = (payload as any).data;
+      depth++;
+    }
+    const data = payload || {};
     
     const topProducts = data.topProducts || [];
     
@@ -60,9 +70,17 @@ export const fetchDashboardStats = async (currency?: string): Promise<DashboardS
   } catch (error: any) {
     console.error('❌ Error fetching dashboard stats:', error);
     
-    if (error.message?.includes('401') || error.message?.includes('403')) {
+    // Never hard-redirect here — 403 means "no permission", the page
+    // will just render empty. Only a real 401 (expired session) logs out,
+    // and even then we soft-redirect via the router so console survives.
+    const status = (error as any)?.status
+      ?? Number(String(error?.message || '').match(/\b(40[0-9]|41[0-9]|5\d\d)\b/)?.[1]);
+
+    if (status === 401) {
       localStorage.removeItem('access_token');
-      window.location.href = '/';
+      document.cookie = 'access_token=; path=/; max-age=0';
+      document.cookie = 'user_role=; path=/; max-age=0';
+      // Let the AuthContext / proxy handle navigation on next render
     }
     
     throw new Error(error.message || 'Failed to fetch dashboard stats');

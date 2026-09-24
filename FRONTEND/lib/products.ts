@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getToken } from './auth-token';
 import { getAuthToken } from './auth';
 
 export interface Category {
@@ -88,7 +89,7 @@ const extractData = (response: any): any => {
 
 export const getProducts = async (): Promise<Product[]> => {
   try {
-    const response = await api.get('/products');
+    const response = await api.get('/products', getToken());
     return extractData(response.data);
   } catch (error) {
     console.error('Error fetching products:', error);
@@ -98,7 +99,7 @@ export const getProducts = async (): Promise<Product[]> => {
 
 export const getCategories = async (): Promise<Category[]> => {
   try {
-    const response = await api.get('/categories');
+    const response = await api.get('/categories', getToken());
     // Simple extraction for categories
     let data = response.data?.data ?? response.data;
     if (data && data.categories && Array.isArray(data.categories)) {
@@ -116,7 +117,7 @@ export const deleteProduct = async (id: number): Promise<void> => {
 };
 
 export const createProduct = async (product: Omit<Product, 'id'>): Promise<Product> => {
-  const response = await api.post('/products', product);
+  const response = await api.post('/products', product, getToken());
   const data = response.data?.data ?? response.data;
   return {
     ...data,

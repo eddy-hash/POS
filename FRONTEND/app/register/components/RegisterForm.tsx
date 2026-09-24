@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { UserIcon, EnvelopeIcon, ArrowRightEndOnRectangleIcon } from '@heroicons/react/24/outline';
+import { UserIcon, EnvelopeIcon, ArrowRightEndOnRectangleIcon, AtSymbolIcon } from '@heroicons/react/24/outline';
 import PasswordField from './PasswordField';
 import { usePasswordGenerator } from './usePasswordGenerator';
 import { useRegister } from '../hooks/useRegister';
@@ -57,8 +57,20 @@ export default function RegisterForm() {
           </div>
 
           {error && (
-            <div className="mb-6 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm text-center">
-              {error}
+            <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-sm">
+              <div className="flex items-start gap-2">
+                <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-600">
+                  !
+                </span>
+                <div className="space-y-1">
+                  <p className="font-medium">Please fix the following:</p>
+                  <ul className="list-disc pl-4 space-y-0.5">
+                    {error.split(' • ').map((line, i) => (
+                      <li key={i}>{line}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
             </div>
           )}
 
@@ -78,6 +90,25 @@ export default function RegisterForm() {
                   placeholder="John Doe"
                   className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition bg-white"
                   required
+                  disabled={loading}
+                />
+              </div>
+            </div>
+
+            {/* Username (optional) */}
+            <div className="space-y-1.5">
+              <label htmlFor="username" className="text-sm font-medium text-slate-700">
+                Username <span className="text-slate-400 font-normal">(optional)</span>
+              </label>
+              <div className="relative">
+                <AtSymbolIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                <input
+                  id="username"
+                  type="text"
+                  value={form.username}
+                  onChange={(e) => updateField('username', e.target.value)}
+                  placeholder="yourname"
+                  className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition bg-white"
                   disabled={loading}
                 />
               </div>

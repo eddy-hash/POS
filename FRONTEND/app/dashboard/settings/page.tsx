@@ -16,11 +16,12 @@ import { showErrorToast } from '@/lib/toast';
 import SuccessModal from '@/components/SuccessModal';
 import { useThemeSafe } from '@/context/ThemeContext';
 import { useCurrencySafe } from '@/context/CurrencyContext';
-import { useAuth } from '@/context/AuthContext';              // ← add
+import { useAuth } from '@/context/AuthContext';
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { user, refreshUser } = useAuth();                     // ← use context instead of local state
+  const { user: authUser, refreshUser } = useAuth();
+
   const themeContext = useThemeSafe();
   const isDark = themeContext?.isDark ?? false;
   const toggleTheme = themeContext?.toggleTheme || (() => {});
@@ -28,23 +29,69 @@ export default function SettingsPage() {
   const currencyContext = useCurrencySafe();
   const currency = currencyContext?.currency || 'TZS';
   const setCurrency = currencyContext?.setCurrency || (() => {});
-  const symbols = currencyContext?.symbols || {};
-  const loading = currencyContext?.loading || false;
 
+  const [mounted, setMounted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState<any>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState('');
   const [modalMessage, setModalMessage] = useState('');
   const [selectedCurrency, setSelectedCurrency] = useState(currency);
 
+  // ✅ Safe merge — never overwrite with undefined
+  const mergeUser = (source: any) => {
+    if (!source) return;
+    setUser((prev: any) => ({
+      id: source.id ?? prev?.id ?? null,
+      name: source.name ?? prev?.name ?? 'User',
+      username: source.username ?? prev?.username ?? '',
+      email: source.email ?? prev?.email ?? '',
+      phone: source.phone ?? prev?.phone ?? '',
+      address: source.address ?? prev?.address ?? '',
+      role: source.role ?? prev?.role ?? 'cashier',
+    }));
+  };
+
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // ✅ Load from localStorage first (instant)
+  useEffect(() => {
+    if (!mounted) return;
+    const stored = JSON.parse(localStorage.getItem('user') || '{}');
+    const payload = stored?.data?.user || stored?.data || stored?.user || stored;
+    if (payload?.email) mergeUser(payload);
+  }, [mounted]);
+
+  // ✅ Then trigger refresh
+  useEffect(() => {
+    if (!mounted) return;
     const token = localStorage.getItem('access_token');
     if (!token) { router.push('/'); return; }
-    refreshUser();                                              // ← replaces fetchUserProfile
-  }, []);
+    setIsLoading(true);
+    refreshUser().finally(() => setIsLoading(false));
+  }, [mounted]);
+
+  // ✅ Merge auth user updates (don't overwrite with empty)
+  useEffect(() => {
+    if (authUser) mergeUser(authUser);
+  }, [authUser]);
 
   useEffect(() => {
     setSelectedCurrency(currency);
   }, [currency]);
+
+  const handleRefresh = async () => {
+    setIsLoading(true);
+    try {
+      await refreshUser();
+    } catch (err: any) {
+      showErrorToast(err.message || 'Failed to refresh profile');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleThemeToggle = () => {
     toggleTheme();
@@ -60,15 +107,16 @@ export default function SettingsPage() {
     setCurrency(newCurrency);
     localStorage.setItem('currency', newCurrency);
     window.dispatchEvent(new CustomEvent('currencyChanged', { detail: { currency: newCurrency } }));
+    const symbols: Record<string, string> = {
+      TZS: 'TSh', USD: '$', EUR: '€', GBP: '£', KES: 'KSh', UGX: 'USh',
+    };
     const symbol = symbols[newCurrency] || newCurrency;
     setModalTitle('Currency Updated');
     setModalMessage(`Currency changed to ${newCurrency} (${symbol})`);
     setModalOpen(true);
   };
 
-  const handleModalClose = () => {
-    setModalOpen(false);
-  };
+  const handleModalClose = () => setModalOpen(false);
 
   const currencies = [
     { code: 'TZS', name: 'Tanzanian Shilling', symbol: 'TSh' },
@@ -110,18 +158,27 @@ export default function SettingsPage() {
     },
   ];
 
+  if (!mounted) return null;
+
   return (
     <div className="space-y-4 dark:bg-slate-900 dark:text-white p-3 sm:p-4 md:p-6 min-h-screen">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Cog6ToothIcon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-blue-600 dark:text-blue-400" /> Settings
+            <Cog6ToothIcon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-blue-600 dark:text-blue-400" />
+            Settings
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">Manage your application preferences</p>
+          <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">
+            Manage your application preferences
+          </p>
         </div>
-        <button onClick={refreshUser} className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition text-sm text-slate-700 dark:text-slate-300">
-          <ArrowPathIcon className="h-4 w-4" />
-          <span className="hidden xs:inline">Refresh</span>
+        <button
+          onClick={handleRefresh}
+          disabled={isLoading}
+          className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition text-sm text-slate-700 dark:text-slate-300 disabled:opacity-50"
+        >
+          <ArrowPathIcon className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          <span className="hidden xs:inline">{isLoading ? 'Loading...' : 'Refresh'}</span>
         </button>
       </div>
 
@@ -132,8 +189,14 @@ export default function SettingsPage() {
               <UserIcon className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base truncate">{user.name || 'User'}</p>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 truncate">{user.email || 'No email registered'}</p>
+              <p className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base truncate">
+                {user.name || 'User'}
+              </p>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 truncate">
+                {user.username ? `@${user.username}` : ''}
+                {user.username && user.email ? ' · ' : ''}
+                {user.email || ''}
+              </p>
               {user.role && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 mt-1">
                   {user.role}
@@ -144,20 +207,22 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <div className="bg-white dark:!bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+      <div className="bg-white dark:!bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 sm:p-6">
         <div className="flex items-start gap-3">
           <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex-shrink-0">
             <CreditCardIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base">Currency</h3>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Select your preferred currency</p>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+              Select your preferred currency
+            </p>
             <div className="mt-3">
               <select
                 value={selectedCurrency}
                 onChange={handleCurrencyChange}
                 className="w-full sm:w-64 px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-                disabled={loading}
+                disabled={isLoading}
               >
                 {currencies.map((curr) => (
                   <option key={curr.code} value={curr.code}>
@@ -165,7 +230,6 @@ export default function SettingsPage() {
                   </option>
                 ))}
               </select>
-              {loading && <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Loading rates...</p>}
             </div>
           </div>
         </div>
@@ -175,15 +239,22 @@ export default function SettingsPage() {
         {settingsSections.map((section) => {
           const Icon = section.icon;
           return (
-            <div key={section.title} className="bg-white dark:!bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3 sm:p-4 hover:shadow-md transition">
+            <div
+              key={section.title}
+              className="bg-white dark:!bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3 sm:p-4 hover:shadow-md transition"
+            >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-start gap-2 sm:gap-3 min-w-0">
                   <div className="p-1.5 sm:p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex-shrink-0">
                     <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base truncate">{section.title}</h3>
-                    <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 truncate">{section.description}</p>
+                    <h3 className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base truncate">
+                      {section.title}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 truncate">
+                      {section.description}
+                    </p>
                   </div>
                 </div>
                 <button

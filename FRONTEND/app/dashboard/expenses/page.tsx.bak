@@ -1,0 +1,112 @@
+'use client';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { ArrowPathIcon, PlusIcon, CreditCardIcon } from '@heroicons/react/24/outline';
+import { Toaster } from 'react-hot-toast';
+import { useCurrencySafe } from '@/context/CurrencyContext';
+import { useExpenses } from '@/lib/hooks/useExpenses';
+import { ExpensesDescription } from './components/ExpensesDescription';
+import { ExpensesStats } from './components/ExpensesStats';
+import { ExpensesSearch } from './components/ExpensesSearch';
+import { ExpenseCard } from './components/ExpenseCard';
+import { ExpensesEmptyState } from './components/ExpensesEmptyState';
+import { ExpensesLoading } from './components/ExpensesLoading';
+import { ExpensesError } from './components/ExpensesError';
+
+export default function ExpensesPage() {
+  const router = useRouter();
+  const currencyContext = useCurrencySafe();
+  const formatCurrency = currencyContext?.formatCurrency || ((amount: number) => `TZS ${amount.toLocaleString()}`);
+  const [search, setSearch] = useState('');
+  const { expenses, loading, error, totalAmount, totalExpenses, categoryCount, averageAmount, fetchExpenses, deleteExpense } = useExpenses({ autoFetch: true });
+
+  const filteredExpenses = expenses.filter((e) =>
+    e.category?.toLowerCase().includes(search.toLowerCase()) ||
+    e.description?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Delete this expense?')) return;
+    await deleteExpense(id);
+  };
+
+  const handleEdit = (id: number) => {
+    router.push(`/dashboard/expenses/${id}/edit`);
+  };
+
+  if (loading && expenses.length === 0) return <ExpensesLoading />;
+  if (error) return <ExpensesError error={error} onRetry={fetchExpenses} />;
+
+  return (
+    <>
+      <Toaster position="bottom-center" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
+
+        {/* ─── Header with Inline Buttons ─────────────────────────── */}
+        <div className="flex items-start justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/30 shrink-0">
+              <CreditCardIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="font-display text-lg sm:text-xl font-semibold text-slate-900 dark:text-white truncate">
+                Expenses
+              </h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                {totalExpenses} total · {formatCurrency(totalAmount)}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={fetchExpenses}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium border border-slate-200 dark:border-slate-700 rounded-lg hover:border-blue-600 dark:hover:border-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+            >
+              <ArrowPathIcon className="h-4 w-4" />
+              <span className="hidden xs:inline">Refresh</span>
+            </button>
+            <button
+              onClick={() => router.push('/dashboard/expenses/new')}
+              className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm font-medium shadow-sm active:scale-95"
+            >
+              <PlusIcon className="h-4 w-4" />
+              <span>Add</span>
+            </button>
+          </div>
+        </div>
+
+        {/* ─── Description ────────────────────────────────────────── */}
+        <ExpensesDescription />
+
+        {/* ─── Stats ────────────────────────────────────────────────── */}
+        <ExpensesStats
+          totalExpenses={totalExpenses}
+          totalAmount={totalAmount}
+          categoryCount={categoryCount}
+          averageAmount={averageAmount}
+          formatCurrency={formatCurrency}
+        />
+
+        {/* ─── Search ────────────────────────────────────────────── */}
+        <ExpensesSearch search={search} setSearch={setSearch} />
+
+        {/* ─── Expenses List ────────────────────────────────────── */}
+        {filteredExpenses.length === 0 ? (
+          <ExpensesEmptyState search={search} onAdd={() => router.push('/dashboard/expenses/new')} />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+            {filteredExpenses.map((expense) => (
+              <ExpenseCard
+                key={expense.id}
+                expense={expense}
+                formatCurrency={formatCurrency}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
