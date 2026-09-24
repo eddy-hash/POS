@@ -32,22 +32,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       role_id: user.role_id,
     });
 
-    const roleId = user.role_id || 3; // Default to cashier if not set
-    const roleName =
-      roleId === 1 ? 'admin' :
-      roleId === 2 ? 'manager' :
-      roleId === 3 ? 'cashier' : 'cashier';
-
-    console.log('📊 Resolved role:', { roleId, roleName });
-
     // ✅ Return ALL user data needed for authorization
     return {
       id: user.id,
       email: user.email,
       name: user.name,
-      role_id: roleId,
-      role: roleName,                 // ✅ REQUIRED by PermissionsGuard
-      isAdmin: roleId === 1,
+      role_id: user.role_id || 3, // Default to cashier if not set
+      isAdmin: user.role_id === 1,
       isActive: user.isActive,
       isLocked: user.isLocked,
       failedLoginAttempts: user.failedLoginAttempts,

@@ -2,12 +2,11 @@ import { Controller, Get, Post, Delete, Body, Param, UseGuards, Request, Query }
 import { SalesService } from './sales.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RBACGuard } from '../auth/guards/rbac.guard';
-import { PermissionsGuard } from '../common/rbac/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { Permission } from '../auth/enums/roles.enum';
 
 @Controller('sales')
-@UseGuards(JwtAuthGuard, RBACGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RBACGuard)
 export class SalesController {
   constructor(private salesService: SalesService) {}
 

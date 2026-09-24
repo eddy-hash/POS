@@ -3,12 +3,11 @@ import { PurchasesService } from './purchases.service';
 import { CreatePurchaseDto } from './dto/create-purchase.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RBACGuard } from '../auth/guards/rbac.guard';
-import { PermissionsGuard } from '../common/rbac/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { Permission } from '../auth/enums/roles.enum';
 
 @Controller('purchases')
-@UseGuards(JwtAuthGuard, RBACGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RBACGuard)
 export class PurchasesController {
   constructor(private purchasesService: PurchasesService) {}
 

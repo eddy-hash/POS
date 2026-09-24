@@ -2,12 +2,9 @@ import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request, Qu
 import { ProductsService } from './products.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RBACGuard } from '../auth/guards/rbac.guard';
-import { PermissionsGuard } from '../common/rbac/permissions.guard';
-import { RequirePermissions } from '../common/rbac/permissions.decorator';
-import { Permission } from '../common/rbac/permissions.enum';
 
 @Controller('products')
-@UseGuards(JwtAuthGuard, RBACGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RBACGuard)
 export class ProductsController {
   private readonly logger = new Logger(ProductsController.name);
 
@@ -45,7 +42,6 @@ export class ProductsController {
   }
 
   @Get()
-  @RequirePermissions(Permission.VIEW_PRODUCTS)
   async findAll(
     @Request() req,
     @Query('currency') currency?: string,
@@ -56,7 +52,6 @@ export class ProductsController {
   }
 
   @Get(':id')
-  @RequirePermissions(Permission.VIEW_PRODUCTS)
   async findOne(
     @Param('id') id: string,
     @Query('currency') currency?: string,
@@ -66,7 +61,6 @@ export class ProductsController {
   }
 
   @Post()
-  @RequirePermissions(Permission.CREATE_PRODUCT)
   async create(
     @Body() createProductDto: any,
     @Request() req,
@@ -83,7 +77,6 @@ export class ProductsController {
   }
 
   @Put(':id')
-  @RequirePermissions(Permission.EDIT_PRODUCT)
   async update(
     @Param('id') id: string,
     @Body() updateProductDto: any,
@@ -99,7 +92,6 @@ export class ProductsController {
   }
 
   @Delete(':id')
-  @RequirePermissions(Permission.DELETE_PRODUCT)
   async remove(
     @Param('id') id: string,
     @Request() req,

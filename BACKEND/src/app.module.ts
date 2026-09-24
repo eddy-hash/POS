@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { PermissionsGuard } from './common/rbac/permissions.guard';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
@@ -57,6 +59,8 @@ import { PurchaseItem } from './purchases/entities/purchase-item.entity';
     DashboardModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [
+    
+  ],
 })
 export class AppModule {}

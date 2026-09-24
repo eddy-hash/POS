@@ -69,4 +69,15 @@ export class NotificationTriggersService {
     });
     await this.notificationRepository.save(notification);
   }
+
+  async onPasswordChanged(userId: number) {
+    const notification = this.notificationRepository.create({
+      userId,
+      title: 'Password Changed',
+      message: 'Your password was updated successfully. If this wasn’t you, contact support immediately.',
+      type: 'security',
+      isRead: false,
+    });
+    await this.notificationRepository.save(notification);
+  }
 }

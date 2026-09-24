@@ -49,23 +49,10 @@ export class UsersService {
       .getOne();
   }
 
-  async create(userData: { email: string; password: string; name: string; username?: string; role_id?: number }): Promise<User> {
+  async create(userData: { email: string; password: string; name: string; role_id?: number }): Promise<User> {
     const existing = await this.findByEmail(userData.email);
     if (existing) {
       throw new ConflictException('User already exists');
-    }
-
-    // Auto-derive username from email prefix if not provided
-    const username =
-      userData.username?.trim() ||
-      userData.email.split('@')[0];
-
-    // Unique-username check
-    const existingUsername = await this.userRepository.findOne({
-      where: { username },
-    });
-    if (existingUsername) {
-      throw new ConflictException('Username already taken');
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -75,8 +62,7 @@ export class UsersService {
       email: userData.email,
       password: hashedPassword,
       name: userData.name,
-      username,
-      role_id: userData.role_id || 3,
+      role_id: userData.role_id || 4,
       preferences: {},
       failedLoginAttempts: 0,
       isLocked: false,

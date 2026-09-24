@@ -2,12 +2,11 @@ import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request, Qu
 import { ExpensesService } from './expenses.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RBACGuard } from '../auth/guards/rbac.guard';
-import { PermissionsGuard } from '../common/rbac/permissions.guard';
 import { Permissions } from '../auth/decorators/permissions.decorator';
 import { Permission } from '../auth/enums/roles.enum';
 
 @Controller('expenses')
-@UseGuards(JwtAuthGuard, RBACGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RBACGuard)
 export class ExpensesController {
   constructor(private expensesService: ExpensesService) {}
 

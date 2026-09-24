@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, MinLength, MaxLength, Matches, IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsNotEmpty, MinLength, MaxLength, Matches } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail({}, { message: 'Invalid email format' })
@@ -19,13 +19,4 @@ export class RegisterDto {
   @MaxLength(100, { message: 'Name is too long' })
   @Matches(/^[a-zA-Z\s]*$/, { message: 'Name can only contain letters and spaces' })
   name: string;
-
-  @IsOptional()
-  @IsString()
-  @MinLength(3, { message: 'Username must be at least 3 characters' })
-  @MaxLength(50, { message: 'Username is too long' })
-  @Matches(/^[a-zA-Z0-9_.-]*$/, {
-    message: 'Username can only contain letters, numbers, dots, underscores, and dashes',
-  })
-  username?: string;
 }

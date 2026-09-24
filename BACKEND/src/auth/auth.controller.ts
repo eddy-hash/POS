@@ -1,4 +1,7 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller, Post, Body, HttpCode, HttpStatus,
+  UseGuards, Request
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Public } from './decorators/permissions.decorator';
 import { LoginDto } from './dto/login.dto';
@@ -6,6 +9,8 @@ import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -18,12 +23,11 @@ export class AuthController {
     const user = await this.authService.validateUser(loginDto.email, loginDto.password);
     const tokens = await this.authService.login(user);
     
-    // ✅ Return tokens.user directly instead of rebuilding
     return {
       success: true,
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
-      user: tokens.user, // ✅ Use the user from tokens
+      user: tokens.user,
     };
   }
 
@@ -55,5 +59,20 @@ export class AuthController {
   @Public()
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     return this.authService.resetPassword(resetPasswordDto.token, resetPasswordDto.newPassword);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  async changePassword(
+    @Request() req,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ) {
+    const userId = req.user.id;
+    return this.authService.changePassword(
+      userId,
+      changePasswordDto.oldPassword,
+      changePasswordDto.newPassword,
+    );
   }
 }

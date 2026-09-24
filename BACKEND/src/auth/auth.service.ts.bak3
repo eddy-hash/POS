@@ -74,11 +74,7 @@ export class AuthService {
       roleName = UserRole.CASHIER;
     }
     if (fullUser.role && fullUser.role.name) {
-      const rn = String(fullUser.role.name).toLowerCase();
-      if (rn === 'admin' || rn === 'manager' || rn === 'cashier') {
-        roleName = rn as UserRole;
-      }
-      // any other value (e.g. legacy 'viewer') keeps the fallback above
+      roleName = fullUser.role.name as UserRole;
     }
     const isAdmin = fullUser.role_id === this.ADMIN_ROLE_ID;
 
@@ -158,7 +154,7 @@ export class AuthService {
     }
   }
 
-  async register(registerDto: { email: string; password: string; name: string; username?: string }) {
+  async register(registerDto: { email: string; password: string; name: string }) {
     try {
       const user = await this.usersService.create(registerDto);
       const { password: _, ...result } = user;

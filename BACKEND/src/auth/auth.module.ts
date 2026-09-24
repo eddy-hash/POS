@@ -10,13 +10,14 @@ import { UsersModule } from '../users/users.module';
 import { RBACGuard } from './guards/rbac.guard';
 import { ResetToken } from './entities/reset-token.entity';
 import { User } from '../users/entities/user.entity';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Global()
 @Module({
   imports: [
     UsersModule,
     PassportModule,
-    TypeOrmModule.forFeature([User, ResetToken]), // ✅ Added ResetToken
+    TypeOrmModule.forFeature([User, ResetToken]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -27,6 +28,7 @@ import { User } from '../users/entities/user.entity';
         },
       }),
     }),
+    NotificationsModule, // ✅ added
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, RBACGuard],

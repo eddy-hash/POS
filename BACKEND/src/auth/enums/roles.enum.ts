@@ -1,39 +1,21 @@
 export enum UserRole {
-  SUPER_ADMIN = 'super_admin',
   ADMIN = 'admin',
   MANAGER = 'manager',
   CASHIER = 'cashier',
-  VIEWER = 'viewer',
 }
 
-export enum Permission {
-  PRODUCT_CREATE = 'product:create',
-  PRODUCT_READ = 'product:read',
-  PRODUCT_UPDATE = 'product:update',
-  PRODUCT_DELETE = 'product:delete',
-  SALE_CREATE = 'sale:create',
-  SALE_READ = 'sale:read',
-  SALE_UPDATE = 'sale:update',
-  SALE_DELETE = 'sale:delete',
-  SALE_VOID = 'sale:void',
-  PURCHASE_CREATE = 'purchase:create',
-  PURCHASE_READ = 'purchase:read',
-  PURCHASE_UPDATE = 'purchase:update',
-  PURCHASE_DELETE = 'purchase:delete',
-  CUSTOMER_CREATE = 'customer:create',
-  CUSTOMER_READ = 'customer:read',
-  CUSTOMER_UPDATE = 'customer:update',
-  CUSTOMER_DELETE = 'customer:delete',
-  EXPENSE_CREATE = 'expense:create',
-  EXPENSE_READ = 'expense:read',
-  EXPENSE_UPDATE = 'expense:update',
-  EXPENSE_DELETE = 'expense:delete',
-  REPORT_VIEW = 'report:view',
-  REPORT_EXPORT = 'report:export',
-  USER_CREATE = 'user:create',
-  USER_READ = 'user:read',
-  USER_UPDATE = 'user:update',
-  USER_DELETE = 'user:delete',
-  SETTINGS_VIEW = 'settings:view',
-  SETTINGS_UPDATE = 'settings:update',
-}
+// Numeric IDs used in DB / JWT payload (must match the roles table)
+export const ROLE_ID: Record<UserRole, number> = {
+  [UserRole.ADMIN]: 1,
+  [UserRole.MANAGER]: 2,
+  [UserRole.CASHIER]: 3,
+};
+
+export const ROLE_FROM_ID: Record<number, UserRole> = {
+  1: UserRole.ADMIN,
+  2: UserRole.MANAGER,
+  3: UserRole.CASHIER,
+};
+
+// Re-export so existing imports of `Permission` from this file keep working
+export { Permission } from '../../common/rbac/permissions.enum';

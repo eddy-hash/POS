@@ -84,13 +84,8 @@ async function bootstrap() {
         });
         console.log('🔴 ===');
 
-        // Flatten all field errors into a single human-readable string
-        const flat = Object.entries(fieldErrors)
-          .map(([field, msg]) => `${field}: ${msg}`)
-          .join(' | ');
-
         return new BadRequestException({
-          message: flat || 'Validation failed',
+          message: 'Validation failed',
           errors: fieldErrors,
         });
       },
