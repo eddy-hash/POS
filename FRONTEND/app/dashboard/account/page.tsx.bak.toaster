@@ -9,6 +9,7 @@ import {
   EyeIcon,
   EyeSlashIcon
 } from '@heroicons/react/24/outline';
+import { Toaster } from 'react-hot-toast';
 import { showSuccessToast, showErrorToast } from '@/lib/toast';
 
 export default function AccountSettingsPage() {
@@ -86,7 +87,8 @@ export default function AccountSettingsPage() {
 
   return (
     <>
-            <div className="max-w-2xl mx-auto">
+      <Toaster position="bottom-center" />
+      <div className="max-w-2xl mx-auto">
         <div className="flex items-center gap-3 mb-6">
           <button onClick={() => router.back()} className="p-2 rounded-lg outline-none hover:bg-slate-100 transition">
             <ArrowLeftIcon className="h-5 w-5 text-slate-600" />

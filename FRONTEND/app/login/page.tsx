@@ -3,7 +3,6 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Toaster } from 'react-hot-toast';
 import TallyLoginForm from '@/components/TallyLoginForm';
 import { showWelcomeBackToast, showErrorToast } from '@/lib/toast';
 import { api } from '@/lib/services/api';
@@ -139,8 +138,7 @@ export default function LoginPage() {
 
   return (
     <>
-      <Toaster position="bottom-center" />
-      <TallyLoginForm
+            <TallyLoginForm
         onSubmit={handleLogin}
         loading={isLoggingIn}
         error={loginError}

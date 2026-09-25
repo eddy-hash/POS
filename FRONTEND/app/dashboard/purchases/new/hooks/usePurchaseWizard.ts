@@ -13,6 +13,8 @@ export function usePurchaseWizard() {
     setCurrentStep((prev) => Math.max(prev - 1, 0));
   };
 
+  const resetWizard = () => setCurrentStep(0);
+
   const isLastStep = currentStep === STEPS.length - 1;
   const isFirstStep = currentStep === 0;
 
@@ -33,6 +35,7 @@ export function usePurchaseWizard() {
     isFirstStep,
     nextStep,
     prevStep,
+    resetWizard,
     canProceed,
   };
 }

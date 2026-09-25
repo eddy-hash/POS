@@ -23,51 +23,51 @@ import {
 import { getAuthToken } from '@/lib/auth';
 import { showSuccessToast, showErrorToast } from '@/lib/toast';
 
-// ─── Type → theme map (light + dark via Tailwind dark: prefix) ────
+// ─── Type → theme map ─────────────────────────────────────────────
 const TYPE_THEME: Record<
   string,
   { ring: string; glow: string; chip: string; bar: string; Icon: any }
 > = {
   sale: {
-    ring: 'ring-emerald-200 dark:ring-emerald-400/30',
-    glow: 'shadow-sm dark:shadow-[0_0_40px_-12px_rgba(52,211,153,.5)]',
-    chip: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-400/15 dark:text-emerald-300',
-    bar: 'bg-emerald-500 dark:bg-emerald-400',
+    ring: 'ring-emerald-400/30',
+    glow: 'shadow-[0_0_40px_-12px_rgba(52,211,153,.5)]',
+    chip: 'bg-emerald-400/15 text-emerald-300',
+    bar: 'bg-emerald-400',
     Icon: ShoppingBagIcon,
   },
   purchase: {
-    ring: 'ring-sky-200 dark:ring-sky-400/30',
-    glow: 'shadow-sm dark:shadow-[0_0_40px_-12px_rgba(56,189,248,.5)]',
-    chip: 'bg-sky-100 text-sky-600 dark:bg-sky-400/15 dark:text-sky-300',
-    bar: 'bg-sky-500 dark:bg-sky-400',
+    ring: 'ring-sky-400/30',
+    glow: 'shadow-[0_0_40px_-12px_rgba(56,189,248,.5)]',
+    chip: 'bg-sky-400/15 text-sky-300',
+    bar: 'bg-sky-400',
     Icon: TruckIcon,
   },
   expense: {
-    ring: 'ring-rose-200 dark:ring-rose-400/30',
-    glow: 'shadow-sm dark:shadow-[0_0_40px_-12px_rgba(251,113,133,.5)]',
-    chip: 'bg-rose-100 text-rose-600 dark:bg-rose-400/15 dark:text-rose-300',
-    bar: 'bg-rose-500 dark:bg-rose-400',
+    ring: 'ring-rose-400/30',
+    glow: 'shadow-[0_0_40px_-12px_rgba(251,113,133,.5)]',
+    chip: 'bg-rose-400/15 text-rose-300',
+    bar: 'bg-rose-400',
     Icon: CreditCardIcon,
   },
   inventory: {
-    ring: 'ring-amber-200 dark:ring-amber-400/30',
-    glow: 'shadow-sm dark:shadow-[0_0_40px_-12px_rgba(251,191,36,.5)]',
-    chip: 'bg-amber-100 text-amber-600 dark:bg-amber-400/15 dark:text-amber-300',
-    bar: 'bg-amber-500 dark:bg-amber-400',
+    ring: 'ring-amber-400/30',
+    glow: 'shadow-[0_0_40px_-12px_rgba(251,191,36,.5)]',
+    chip: 'bg-amber-400/15 text-amber-300',
+    bar: 'bg-amber-400',
     Icon: ExclamationTriangleIcon,
   },
   customer: {
-    ring: 'ring-violet-200 dark:ring-violet-400/30',
-    glow: 'shadow-sm dark:shadow-[0_0_40px_-12px_rgba(167,139,250,.5)]',
-    chip: 'bg-violet-100 text-violet-600 dark:bg-violet-400/15 dark:text-violet-300',
-    bar: 'bg-violet-500 dark:bg-violet-400',
+    ring: 'ring-violet-400/30',
+    glow: 'shadow-[0_0_40px_-12px_rgba(167,139,250,.5)]',
+    chip: 'bg-violet-400/15 text-violet-300',
+    bar: 'bg-violet-400',
     Icon: UserIcon,
   },
   security: {
-    ring: 'ring-fuchsia-200 dark:ring-fuchsia-400/30',
-    glow: 'shadow-sm dark:shadow-[0_0_40px_-12px_rgba(232,121,249,.5)]',
-    chip: 'bg-fuchsia-100 text-fuchsia-600 dark:bg-fuchsia-400/15 dark:text-fuchsia-300',
-    bar: 'bg-fuchsia-500 dark:bg-fuchsia-400',
+    ring: 'ring-fuchsia-400/30',
+    glow: 'shadow-[0_0_40px_-12px_rgba(232,121,249,.5)]',
+    chip: 'bg-fuchsia-400/15 text-fuchsia-300',
+    bar: 'bg-fuchsia-400',
     Icon: ShieldCheckIcon,
   },
 };
@@ -106,7 +106,7 @@ function NotificationCard({
     const r = cardRef.current.getBoundingClientRect();
     const px = (e.clientX - r.left) / r.width - 0.5;
     const py = (e.clientY - r.top) / r.height - 0.5;
-    cardRef.current.style.transform = `perspective(900px) rotateX(${py * -5}deg) rotateY(${px * 7}deg)`;
+    cardRef.current.style.transform = `perspective(900px) rotateX(${py * -6}deg) rotateY(${px * 8}deg)`;
   };
 
   const handleMouseLeave = () => {
@@ -122,36 +122,29 @@ function NotificationCard({
       style={{ animationDelay: `${index * 40}ms` }}
       className={`
         notification-card-in group relative cursor-pointer overflow-hidden
-        rounded-xl border bg-white dark:bg-slate-800
-        border-slate-200 dark:border-slate-700
+        rounded-2xl border border-white/10 bg-slate-900/60 backdrop-blur-xl
         ring-1 ${theme.ring} ${theme.glow}
         transition-transform duration-200 ease-out
       `}
     >
-      <div className="relative flex gap-3 p-3.5">
-        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${theme.chip}`}>
+      <div className="relative flex gap-3 p-4">
+        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${theme.chip}`}>
           <Icon className="h-5 w-5" />
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p
-              className={`truncate text-[13.5px] font-medium ${
-                n.isRead
-                  ? 'text-slate-500 dark:text-slate-500'
-                  : 'text-slate-900 dark:text-white'
-              }`}
-            >
+            <p className={`truncate text-[13.5px] font-medium ${n.isRead ? 'text-white/55' : 'text-white/95'}`}>
               {n.title}
             </p>
             {!n.isRead && (
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500 dark:bg-blue-400" />
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue-400" />
             )}
           </div>
-          <p className="mt-0.5 line-clamp-2 text-[12.5px] leading-snug text-slate-500 dark:text-slate-400">
+          <p className="mt-0.5 line-clamp-2 text-[12.5px] leading-snug text-white/55">
             {n.message}
           </p>
-          <p className="mt-1.5 text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500">
+          <p className="mt-1.5 text-[10px] uppercase tracking-wider text-white/35">
             {relativeTime(n.createdAt)}
           </p>
         </div>
@@ -162,15 +155,15 @@ function NotificationCard({
             onDelete(n.id, n.title);
           }}
           aria-label="Delete notification"
-          className="h-6 w-6 shrink-0 rounded-md text-slate-400 opacity-0 transition hover:bg-slate-100 hover:text-slate-700 group-hover:opacity-100 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+          className="h-6 w-6 shrink-0 rounded-full text-white/35 opacity-0 transition hover:bg-white/10 hover:text-white/80 group-hover:opacity-100"
         >
           <XMarkIcon className="mx-auto h-3.5 w-3.5" />
         </button>
       </div>
 
       {!n.isRead && (
-        <div className="h-[2px] w-full bg-slate-100 dark:bg-slate-700">
-          <div className={`h-full w-full ${theme.bar}`} />
+        <div className="h-[2px] w-full bg-white/5">
+          <div className={`h-full w-full ${theme.bar} opacity-80`} />
         </div>
       )}
     </div>
@@ -185,8 +178,10 @@ interface NotificationsDropdownProps {
 
 export default function NotificationsDropdown({
   size = 'md',
+  isMobile = false,
 }: NotificationsDropdownProps) {
   const theme = useThemeSafe();
+  const isDark = theme?.isDark ?? false;
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -289,20 +284,17 @@ export default function NotificationsDropdown({
         <div
           className="
             absolute right-0 top-full z-50 mt-2 w-[min(92vw,400px)]
-            overflow-hidden rounded-xl
-            bg-white dark:bg-slate-900
-            border border-slate-200 dark:border-slate-700
-            shadow-lg dark:shadow-2xl dark:shadow-black/60
+            overflow-hidden rounded-2xl border border-white/10
+            bg-[#0e0e15]/95 shadow-2xl shadow-black/60
+            ring-1 ring-white/5 backdrop-blur-2xl
           "
         >
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700">
+          <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
-                Notifications
-              </h3>
+              <h3 className="text-sm font-semibold text-white">Notifications</h3>
               {unreadCount > 0 && (
-                <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-500/15 dark:text-rose-400">
+                <span className="rounded-full bg-rose-500/15 px-2 py-0.5 text-[10px] font-bold text-rose-400">
                   {unreadCount} new
                 </span>
               )}
@@ -310,7 +302,7 @@ export default function NotificationsDropdown({
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllAsRead}
-                className="flex items-center gap-1 text-[11px] font-medium text-slate-500 transition hover:text-slate-800 dark:text-slate-400 dark:hover:text-white"
+                className="flex items-center gap-1 text-[11px] font-medium text-white/60 transition hover:text-white"
               >
                 <CheckIcon className="h-3 w-3" />
                 Mark all read
@@ -325,21 +317,17 @@ export default function NotificationsDropdown({
           >
             {loading && notifications.length === 0 && (
               <div className="flex justify-center py-8">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-slate-600 dark:border-slate-700 dark:border-t-slate-300" />
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/20 border-t-white/70" />
               </div>
             )}
 
             {!loading && notifications.length === 0 && (
               <div className="flex flex-col items-center gap-2 py-10 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
-                  <InboxIcon className="h-6 w-6 text-slate-400 dark:text-slate-500" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/5">
+                  <InboxIcon className="h-6 w-6 text-white/30" />
                 </div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  All caught up
-                </p>
-                <p className="text-xs text-slate-400 dark:text-slate-500">
-                  No new notifications right now
-                </p>
+                <p className="text-sm font-medium text-white/60">All caught up</p>
+                <p className="text-xs text-white/35">No new notifications right now</p>
               </div>
             )}
 
@@ -356,8 +344,8 @@ export default function NotificationsDropdown({
 
           {/* Footer */}
           {notifications.length > 0 && (
-            <div className="border-t border-slate-200 px-4 py-2.5 text-center dark:border-slate-700">
-              <span className="text-[11px] text-slate-400 dark:text-slate-500">
+            <div className="border-t border-white/10 px-4 py-2.5 text-center">
+              <span className="text-[11px] text-white/40">
                 {notifications.length} notification{notifications.length === 1 ? '' : 's'}
               </span>
             </div>

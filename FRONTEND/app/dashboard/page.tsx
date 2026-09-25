@@ -7,6 +7,7 @@ import { StatCards } from './components/StatCards';
 import { ChartsRow } from './components/ChartsRow';
 import { BottomCharts } from './components/BottomCharts';
 import { useDashboard } from './hooks/useDashboard';
+import { showSuccessToast } from '@/lib/toast';
 
 const STEPS = ['Overview', 'Trends', 'Insights'];
 
@@ -130,7 +131,8 @@ export default function DashboardPage() {
         currency={currency}
         symbols={symbols}
         rates={rates}
-        onRefresh={loadDashboard}
+        onRefresh={async () => { await loadDashboard(); showSuccessToast('Dashboard refreshed'); }}
+        loading={loading}
       />
 
       {/* ─── Progress Bar ───────────────────────────────────────────── */}
@@ -153,7 +155,7 @@ export default function DashboardPage() {
       {/* ─── Step Content ───────────────────────────────────────────── */}
       <div className="min-h-[300px]">
         <AnimatePresence mode="wait">
-          <StepContent key={currentStep} />
+          {renderStepContent()}
         </AnimatePresence>
       </div>
 

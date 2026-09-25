@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowPathIcon, PlusIcon, CreditCardIcon } from '@heroicons/react/24/outline';
+import { Toaster } from 'react-hot-toast';
 import { useCurrencySafe } from '@/context/CurrencyContext';
 import { useExpenses } from '@/lib/hooks/useExpenses';
 import { showSuccessToast } from '@/lib/toast';
@@ -45,7 +46,8 @@ export default function ExpensesPage() {
 
   return (
     <>
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
+      <Toaster position="bottom-center" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
 
         {/* ─── Header with Inline Buttons ─────────────────────────── */}
         <div className="flex items-start justify-between flex-wrap gap-3">

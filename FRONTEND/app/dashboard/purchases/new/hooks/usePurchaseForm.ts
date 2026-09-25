@@ -1,11 +1,9 @@
 import { useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
 import { showErrorToast } from '@/lib/toast';
 import { api } from '@/lib/services/api';
 import { Product, PurchaseItem } from '../types';
 
 export function usePurchaseForm() {
-  const router = useRouter();
   const [items, setItems] = useState<PurchaseItem[]>([]);
   const [supplier, setSupplier] = useState('');
   const [notes, setNotes] = useState('');
@@ -88,6 +86,12 @@ export function usePurchaseForm() {
     }
   };
 
+  const resetForm = () => {
+    setItems([]);
+    setSupplier('');
+    setNotes('');
+  };
+
   return {
     items,
     supplier,
@@ -100,5 +104,6 @@ export function usePurchaseForm() {
     removeItem,
     updateQuantity,
     submitPurchase,
+    resetForm,
   };
 }

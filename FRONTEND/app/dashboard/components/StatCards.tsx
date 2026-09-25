@@ -46,8 +46,11 @@ export function StatCards({ stats, displayRevenue, displayExpenses, displayProfi
       href: '/dashboard/expenses',
     },
     {
-      title: 'Total Profit',
-      displayValue: displayProfit,
+      title: profit >= 0 ? 'Total Profit' : 'Total Loss',
+      displayValue:
+        profit >= 0
+          ? displayProfit
+          : displayProfit.replace('-', ''),   // strip the minus — label says Loss
       icon: profit >= 0 ? ArrowTrendingUpIcon : ArrowTrendingDownIcon,
       color: profit >= 0 ? 'bg-purple-500' : 'bg-orange-500',
       href: '/dashboard/reports',

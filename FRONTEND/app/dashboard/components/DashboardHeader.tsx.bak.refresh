@@ -6,10 +6,9 @@ interface DashboardHeaderProps {
   symbols: Record<string, string>;
   rates: Record<string, number>;
   onRefresh: () => void;
-  loading?: boolean;
 }
 
-export function DashboardHeader({ currency, symbols, rates, onRefresh, loading = false }: DashboardHeaderProps) {
+export function DashboardHeader({ currency, symbols, rates, onRefresh }: DashboardHeaderProps) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>

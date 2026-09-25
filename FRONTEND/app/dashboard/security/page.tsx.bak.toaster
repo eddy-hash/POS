@@ -11,6 +11,7 @@ import {
   XCircleIcon,
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
+import { Toaster } from 'react-hot-toast';
 import { showSuccessToast, showErrorToast } from '@/lib/toast';
 
 interface Session {
@@ -88,7 +89,8 @@ export default function SecurityPage() {
 
   return (
     <>
-            <div className="max-w-4xl mx-auto">
+      <Toaster position="bottom-center" />
+      <div className="max-w-4xl mx-auto">
         <div className="flex items-center gap-3 mb-6">
           <button onClick={() => router.back()} className="p-2 rounded-lg outline-none hover:bg-slate-100 transition">
             <ArrowLeftIcon className="h-5 w-5 text-slate-600" />

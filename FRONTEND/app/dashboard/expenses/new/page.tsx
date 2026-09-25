@@ -1,7 +1,7 @@
 'use client';
 export const dynamic = "force-dynamic";
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, easeOut } from 'framer-motion';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
@@ -10,6 +10,7 @@ import { ExpenseBasicInfo } from './components/ExpenseBasicInfo';
 import { ExpenseAmount } from './components/ExpenseAmount';
 import { ExpenseReview } from './components/ExpenseReview';
 import { ExpenseNavigation } from './components/ExpenseNavigation';
+import SuccessModal from '@/components/ui/SuccessModal';
 
 export default function NewExpensePage() {
   const router = useRouter();
@@ -25,7 +26,32 @@ export default function NewExpensePage() {
     nextStep,
     prevStep,
     handleSubmit,
+    resetForm,
   } = useExpenseForm();
+
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  // ─── Submit wrapper — shows modal on success, no redirect ────────
+  const handleCompleteSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const ok = await handleSubmit();
+    if (ok) setShowSuccessModal(true);
+  };
+
+  const handleNext = () => {
+    if (isLastStep) handleCompleteSubmit();
+    else nextStep();
+  };
+
+  const handleNewExpense = () => {
+    resetForm();
+    setShowSuccessModal(false);
+  };
+
+  const handleViewExpenses = () => {
+    setShowSuccessModal(false);
+    router.push('/dashboard/expenses');
+  };
 
   const stepContent = useMemo(() => {
     switch (currentStep) {
@@ -68,10 +94,10 @@ export default function NewExpensePage() {
         ))}
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 min-h-[300px] overflow-hidden">
-        <AnimatePresence mode="wait">
+      <form onSubmit={handleCompleteSubmit} className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 min-h-[300px] overflow-hidden">
+        <AnimatePresence mode="wait" initial={false}>
           <motion.div
-            key={currentStep}
+            key={`step-${currentStep}`}
             initial={{ x: 30, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -30, opacity: 0 }}
@@ -88,9 +114,21 @@ export default function NewExpensePage() {
           loading={loading}
           isLastStep={isLastStep}
           onBack={prevStep}
-          onNext={nextStep}
+          onNext={handleNext}
         />
       </form>
+
+      {/* ─── Success Modal ─────────────────────────────────────────── */}
+      <SuccessModal
+        isOpen={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        title="Expense Added!"
+        message="The expense has been recorded successfully."
+        buttonText="Add Another"
+        onButtonClick={handleNewExpense}
+        secondaryButtonText="View All Expenses"
+        onSecondaryButtonClick={handleViewExpenses}
+      />
     </div>
   );
 }

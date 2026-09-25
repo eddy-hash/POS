@@ -29,9 +29,10 @@ export default function NewPurchasePage() {
     removeItem,
     updateQuantity,
     submitPurchase,
+    resetForm,
   } = usePurchaseForm();
 
-  const { currentStep, steps, isLastStep, isFirstStep, nextStep, prevStep, canProceed } =
+  const { currentStep, steps, isLastStep, isFirstStep, nextStep, prevStep, canProceed, resetWizard } =
     usePurchaseWizard();
 
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -46,6 +47,16 @@ export default function NewPurchasePage() {
   };
 
   const handleSuccessClose = () => {
+    setSuccessOpen(false);
+  };
+
+  const handleNewPurchase = () => {
+    resetForm();
+    resetWizard();
+    setSuccessOpen(false);
+  };
+
+  const handleViewPurchases = () => {
     setSuccessOpen(false);
     router.push('/dashboard/purchases');
   };
@@ -106,9 +117,9 @@ export default function NewPurchasePage() {
 
       {/* Step Content */}
       <div className="bg-white dark:!bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 min-h-[300px] overflow-hidden">
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait" initial={false}>
           <motion.div
-            key={currentStep}
+            key={`step-${currentStep}`}
             initial={{ x: 30, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -30, opacity: 0 }}
@@ -143,10 +154,12 @@ export default function NewPurchasePage() {
       <SuccessModal
         isOpen={successOpen}
         onClose={handleSuccessClose}
-        title="Purchase Created"
+        title="Purchase Created!"
         message="Purchase order has been created successfully."
-        buttonText="View Purchases"
-        onButtonClick={handleSuccessClose}
+        buttonText="New Purchase"
+        onButtonClick={handleNewPurchase}
+        secondaryButtonText="View All Purchases"
+        onSecondaryButtonClick={handleViewPurchases}
       />
     </div>
   );

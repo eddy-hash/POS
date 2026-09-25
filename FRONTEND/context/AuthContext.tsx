@@ -38,6 +38,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (userStr) {
         const parsed = JSON.parse(userStr);
         setUser(parsed);
+
+        // ─── Re-sync cookies so proxy.ts (server-side) sees us ───
+        // Cookies are set on login but can be cleared, expire, or be
+        // missing in a new tab. Re-hydrating here keeps the server-side
+        // route guard and the client in sync.
+        const token = localStorage.getItem('access_token');
+        const oneDay = 60 * 60 * 24;
+        if (token) {
+          document.cookie = `access_token=${token}; path=/; max-age=${oneDay}; SameSite=Lax`;
+        }
+        if (parsed?.role) {
+          document.cookie = `user_role=${parsed.role}; path=/; max-age=${oneDay}; SameSite=Lax`;
+        }
+        if (parsed?.name) {
+          document.cookie = `user_name=${encodeURIComponent(parsed.name)}; path=/; max-age=${oneDay}; SameSite=Lax`;
+        }
       }
     } catch {
       localStorage.removeItem('user');

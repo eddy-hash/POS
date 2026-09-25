@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeftIcon, ArrowRightIcon, CheckIcon } from '@heroicons/react/24/outline';
-import { Toaster } from 'react-hot-toast';
 import { useProducts } from './hooks/useProducts';
 import { useSaleForm } from './hooks/useSaleForm';
 import { ProductSearch } from './components/ProductSearch';
@@ -12,6 +11,7 @@ import { SaleItemsTable } from './components/SaleItemsTable';
 import { Notes } from './components/Notes';
 import { CustomerInfo } from './components/CustomerInfo';
 import { SaleSummary } from './components/SaleSummary';
+import SuccessModal from '@/components/ui/SuccessModal';
 
 const STEPS = ['Products', 'Customer & Payment', 'Review'];
 
@@ -36,19 +36,38 @@ export default function NewSalePage() {
     removeItem,
     updateQuantity,
     submitSale,
+    resetForm,
   } = useSaleForm();
 
   const [currentStep, setCurrentStep] = useState(0);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const nextStep = () => {
     if (currentStep === STEPS.length - 1) {
-      submitSale();
+      handleCompleteSale();
       return;
     }
     setCurrentStep((prev) => Math.min(prev + 1, STEPS.length - 1));
   };
 
   const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 0));
+
+  // ─── Complete sale → modal on success ──────────────────────────
+  const handleCompleteSale = async () => {
+    const ok = await submitSale();
+    if (ok) setShowSuccessModal(true);
+  };
+
+  const handleNewSale = () => {
+    resetForm();
+    setCurrentStep(0);
+    setShowSuccessModal(false);
+  };
+
+  const handleViewSales = () => {
+    setShowSuccessModal(false);
+    router.push('/dashboard/sales');
+  };
 
   const isLastStep = currentStep === STEPS.length - 1;
   const canProceed = () => {
@@ -122,7 +141,7 @@ export default function NewSalePage() {
               taxAmount={taxAmount}
               discountAmount={discountAmount}
               loading={loading}
-              onSubmit={submitSale}
+              onSubmit={handleCompleteSale}
               hasItems={saleItems.length > 0}
             />
           </div>
@@ -134,8 +153,7 @@ export default function NewSalePage() {
 
   return (
     <>
-      <Toaster position="bottom-center" />
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-4 sm:p-6 md:p-8">
+            <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 p-4 sm:p-6 md:p-8">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Header */}
           <div className="flex items-center gap-3 pb-4 border-b border-slate-200 dark:border-slate-800">
@@ -210,6 +228,18 @@ export default function NewSalePage() {
           </div>
         </div>
       </div>
+
+      {/* ─── Success Modal ─────────────────────────────────────────── */}
+      <SuccessModal
+        isOpen={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        title="Sale Completed!"
+        message="The sale has been recorded successfully."
+        buttonText="New Sale"
+        onButtonClick={handleNewSale}
+        secondaryButtonText="View All Sales"
+        onSecondaryButtonClick={handleViewSales}
+      />
     </>
   );
 }

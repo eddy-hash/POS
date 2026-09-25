@@ -131,7 +131,6 @@ const THEME: Record<ToastType, ToastTheme> = {
     glow: 'dark:shadow-[0_24px_60px_-15px_rgba(71,85,105,.55)]',
     bar: 'bg-slate-600',
     icon: LogoutIcon,
-    shape: 'rect',
   },
 };
 
@@ -157,9 +156,6 @@ interface ToastContentProps {
 function ToastContent({ type, message, subMessage, id, visible, duration }: ToastContentProps) {
   const theme = THEME[type];
   const cardRef = useRef<HTMLDivElement>(null);
-  const isRect = theme.shape === 'rect';
-  const shapeClass = isRect ? 'rounded-sm' : 'rounded-2xl';
-  const widthClass = isRect ? 'w-[min(92vw,420px)]' : 'w-[min(92vw,360px)]';
 
   // Auto-dismiss — RHT's built-in timer doesn't reliably fire for
   // toast.custom() with our wrapper config, so we handle it ourselves.
@@ -190,7 +186,7 @@ function ToastContent({ type, message, subMessage, id, visible, duration }: Toas
       onMouseLeave={handleMouseLeave}
       className={`
         toast-card pointer-events-auto relative overflow-hidden
-        ${widthClass} ${shapeClass}
+        w-[min(92vw,360px)] rounded-2xl
         bg-white dark:bg-slate-800
         ring-1 ${theme.ring} shadow-lg ${theme.glow}
         transition-transform duration-200 ease-out
@@ -201,51 +197,30 @@ function ToastContent({ type, message, subMessage, id, visible, duration }: Toas
       {/* Colored top accent */}
       <div className={`absolute inset-x-0 top-0 h-1 ${theme.bar}`} />
 
-      {isRect ? (
-        /* ── Rectangular layout: icon left, text left-aligned ── */
-        <div className="flex items-center gap-3 px-4 py-3">
-          <div
-            className={`
-              flex h-10 w-10 shrink-0 items-center justify-center
-              ${shapeClass} ${theme.accentBg}
-              shadow ring-1 ring-white/40 dark:ring-white/15
-            `}
-          >
-            {theme.icon}
-          </div>
-          <div className="min-w-0 flex-1 text-left">
-            <p className="truncate text-[14px] font-semibold leading-tight text-slate-900 dark:text-white">
-              {message}
-            </p>
-            {subMessage && (
-              <p className="mt-0.5 truncate text-[12px] leading-snug text-slate-500 dark:text-slate-400">
-                {subMessage}
-              </p>
-            )}
-          </div>
+      <div className="flex flex-col items-center gap-2 px-5 py-4 text-center">
+        {/* Icon chip */}
+        <div
+          className={`
+            flex h-11 w-11 shrink-0 items-center justify-center
+            rounded-full ${theme.accentBg}
+            shadow-md ring-2 ring-white/60 dark:ring-white/20
+          `}
+        >
+          {theme.icon}
         </div>
-      ) : (
-        /* ── Default rounded layout: centered stack ── */
-        <div className="flex flex-col items-center gap-2 px-5 py-4 text-center">
-          <div
-            className={`
-              flex h-11 w-11 shrink-0 items-center justify-center
-              rounded-full ${theme.accentBg}
-              shadow-md ring-2 ring-white/60 dark:ring-white/20
-            `}
-          >
-            {theme.icon}
-          </div>
-          <p className="text-[14px] font-semibold leading-tight text-slate-900 dark:text-white">
-            {message}
+
+        {/* Message */}
+        <p className="text-[14px] font-semibold leading-tight text-slate-900 dark:text-white">
+          {message}
+        </p>
+
+        {/* Sub-message */}
+        {subMessage && (
+          <p className="text-[12px] leading-snug text-slate-500 dark:text-slate-400">
+            {subMessage}
           </p>
-          {subMessage && (
-            <p className="text-[12px] leading-snug text-slate-500 dark:text-slate-400">
-              {subMessage}
-            </p>
-          )}
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Progress bar — visual countdown, pauses on hover */}
       <div className="h-[3px] w-full bg-slate-100 dark:bg-slate-700">

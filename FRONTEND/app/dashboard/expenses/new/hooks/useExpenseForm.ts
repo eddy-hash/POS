@@ -1,12 +1,10 @@
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { expenseService } from '@/lib/services/expense.service';
-import { showSuccessToast, showErrorToast } from '@/lib/toast';
+import { showErrorToast } from '@/lib/toast';
 
 const STEPS = ['Basic Info', 'Amount', 'Review'];
 
 export function useExpenseForm() {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [currentStep, setCurrentStep] = useState(0);
@@ -18,10 +16,6 @@ export function useExpenseForm() {
   });
 
   const nextStep = () => {
-    if (currentStep === STEPS.length - 1) {
-      handleSubmit();
-      return;
-    }
     setCurrentStep((prev) => Math.min(prev + 1, STEPS.length - 1));
   };
 
@@ -39,7 +33,7 @@ export function useExpenseForm() {
     return true;
   };
 
-  const handleSubmit = async (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent): Promise<boolean> => {
     if (e) e.preventDefault();
     setLoading(true);
     setError('');
@@ -56,14 +50,21 @@ export function useExpenseForm() {
       }
 
       await expenseService.create(expenseData);
-      showSuccessToast('Expense added successfully');
-      router.push('/dashboard/expenses');
+      // Success — page shows a modal
+      return true;
     } catch (err: any) {
       setError(err.message || 'Failed to create expense');
       showErrorToast(err.message);
+      return false;
     } finally {
       setLoading(false);
     }
+  };
+
+  const resetForm = () => {
+    setForm({ description: '', amount: '', category: '', expenseDate: '' });
+    setCurrentStep(0);
+    setError('');
   };
 
   return {
@@ -78,5 +79,6 @@ export function useExpenseForm() {
     nextStep,
     prevStep,
     handleSubmit,
+    resetForm,
   };
 }

@@ -50,13 +50,14 @@ export function StatsGrid({ stats, formatCurrency }: StatsGridProps) {
       isCurrency: true,   // count
     },
     {
-      title: 'Net Profit',
-      value: stats.profit,
+      title: stats.profit >= 0 ? 'Net Profit' : 'Net Loss',
+      value: stats.profit >= 0 ? stats.profit : Math.abs(stats.profit),
       icon: ChartBarIcon,
       color: stats.profit >= 0 ? 'bg-purple-500' : 'bg-orange-500',
       trend: stats.profit >= 0 ? '+15.8%' : '-4.2%',
       trendUp: stats.profit >= 0,
-      isCurrency: true,   
+      isCurrency: true,
+      isLoss: stats.profit < 0,
     },
 
     {

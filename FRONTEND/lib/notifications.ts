@@ -52,26 +52,39 @@ export const getNotifications = async (): Promise<{ notifications: Notification[
 
   try {
     const response = await api.get('/notifications', getToken());
-    
-    let data = response.data;
-    if (data && data.data) {
+
+    // The backend wraps responses twice:
+    //   { success, data: { success, data: { notifications: [...], unreadCount } } }
+    // Loop until we reach an object that actually contains `notifications`
+    // (or until we run out of nesting).
+    let data: any = response.data;
+    let depth = 0;
+    while (
+      data &&
+      typeof data === 'object' &&
+      !Array.isArray(data) &&
+      data.notifications === undefined &&
+      'data' in data &&
+      depth < 5
+    ) {
       data = data.data;
+      depth++;
     }
-    
+
     if (data && data.notifications !== undefined) {
       return {
         notifications: data.notifications || [],
-        unreadCount: data.unreadCount || 0,
+        unreadCount: data.unreadCount ?? 0,
       };
     }
-    
+
     if (Array.isArray(data)) {
       return {
         notifications: data,
         unreadCount: data.filter((n: Notification) => !n.isRead).length,
       };
     }
-    
+
     return { notifications: [], unreadCount: 0 };
   } catch (error: any) {
     // Silent error handling - no console logs for expected errors

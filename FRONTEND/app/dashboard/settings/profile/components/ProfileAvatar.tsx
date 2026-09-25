@@ -42,9 +42,6 @@ export function ProfileAvatar({ name, email, isActive }: ProfileAvatarProps) {
               <span className={`h-1.5 w-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-red-500'}`} />
               {isActive ? 'Active' : 'Inactive'}
             </span>
-            <span className="text-xs text-slate-400 dark:text-slate-500">
-              ID: #{profile?.id}
-            </span>
           </div>
         </div>
       </div>

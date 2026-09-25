@@ -12,6 +12,9 @@ import { ExpenseCard } from './components/ExpenseCard';
 import { ExpensesEmptyState } from './components/ExpensesEmptyState';
 import { ExpensesLoading } from './components/ExpensesLoading';
 import { ExpensesError } from './components/ExpensesError';
+import PermissionGate from '@/components/auth/PermissionGate';
+import { PERMISSIONS } from '@/constants/permissions';
+import { usePermission } from '@/hooks/usePermission';
 
 export default function ExpensesPage() {
   const router = useRouter();
@@ -19,6 +22,9 @@ export default function ExpensesPage() {
   const formatCurrency = currencyContext?.formatCurrency || ((amount: number) => `TZS ${amount.toLocaleString()}`);
   const [search, setSearch] = useState('');
   const { expenses, loading, error, totalAmount, totalExpenses, categoryCount, averageAmount, fetchExpenses, deleteExpense } = useExpenses({ autoFetch: true });
+  const { hasPermission } = usePermission();
+  const canEdit = hasPermission(PERMISSIONS.EXPENSE_UPDATE);
+  const canDelete = hasPermission(PERMISSIONS.EXPENSE_DELETE);
 
   const filteredExpenses = expenses.filter((e) =>
     e.category?.toLowerCase().includes(search.toLowerCase()) ||
@@ -65,13 +71,15 @@ export default function ExpensesPage() {
               <ArrowPathIcon className="h-4 w-4" />
               <span className="hidden xs:inline">Refresh</span>
             </button>
-            <button
-              onClick={() => router.push('/dashboard/expenses/new')}
-              className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm font-medium shadow-sm active:scale-95"
-            >
-              <PlusIcon className="h-4 w-4" />
-              <span>Add</span>
-            </button>
+            <PermissionGate permission={PERMISSIONS.EXPENSE_CREATE}>
+              <button
+                onClick={() => router.push('/dashboard/expenses/new')}
+                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm font-medium shadow-sm active:scale-95"
+              >
+                <PlusIcon className="h-4 w-4" />
+                <span>Add</span>
+              </button>
+            </PermissionGate>
           </div>
         </div>
 
@@ -100,8 +108,8 @@ export default function ExpensesPage() {
                 key={expense.id}
                 expense={expense}
                 formatCurrency={formatCurrency}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
+                onEdit={canEdit ? handleEdit : undefined}
+                onDelete={canDelete ? handleDelete : undefined}
               />
             ))}
           </div>

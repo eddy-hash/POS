@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { Toaster } from 'react-hot-toast';
 import { showSuccessToast, showErrorToast } from '@/lib/toast';
 import { ProfileLoading } from './components/ProfileLoading';
 import { ProfileError } from './components/ProfileError';
@@ -94,7 +95,8 @@ export default function ProfilePage() {
 
   return (
     <>
-            <div className="max-w-3xl mx-auto px-4 sm:px-0 py-4 sm:py-6">
+      <Toaster position="bottom-center" />
+      <div className="max-w-3xl mx-auto px-4 sm:px-0 py-4 sm:py-6">
         <ProfileHeader />
         <form
           onSubmit={handleSubmit}

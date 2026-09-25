@@ -1,10 +1,8 @@
 import { useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import { showSuccessToast, showErrorToast } from '@/lib/toast';
+import { showErrorToast } from '@/lib/toast';
 import { Product, SaleItem, SaleFormData, SaleTotals } from '../types';
 
 export function useSaleForm() {
-  const router = useRouter();
   const [saleItems, setSaleItems] = useState<SaleItem[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
@@ -69,10 +67,10 @@ export function useSaleForm() {
     return { subtotal, tax, netAmount };
   }, [saleItems, taxAmount, discountAmount]);
 
-  const submitSale = async () => {
+  const submitSale = async (): Promise<boolean> => {
     if (saleItems.length === 0) {
       showErrorToast('Please add at least one product');
-      return;
+      return false;
     }
 
     setLoading(true);
@@ -101,13 +99,23 @@ export function useSaleForm() {
 
       if (!response.ok) throw new Error('Failed to create sale');
 
-      showSuccessToast('Sale created successfully!');
-      router.push('/dashboard/sales');
+      // Success — caller decides what to do (page shows a modal)
+      return true;
     } catch (err: any) {
       showErrorToast(err.message);
+      return false;
     } finally {
       setLoading(false);
     }
+  };
+
+  const resetForm = () => {
+    setSaleItems([]);
+    setCustomerName('');
+    setPaymentMethod('cash');
+    setDiscountAmount(0);
+    setTaxAmount(0);
+    setNotes('');
   };
 
   return {
@@ -128,5 +136,6 @@ export function useSaleForm() {
     removeItem,
     updateQuantity,
     submitSale,
+    resetForm,
   };
 }

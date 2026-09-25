@@ -53,9 +53,8 @@ export function useProfile() {
     if (!profile) return;
     setSaving(true);
     try {
-      const token = localStorage.getItem('access_token');
       await api.put(
-        `/users/${profile.id}`,
+        '/users/profile',
         {
           name: updatedData.name,
           phone: updatedData.phone,

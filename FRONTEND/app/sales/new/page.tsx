@@ -1,6 +1,5 @@
 'use client';
 
-import { Toaster } from 'react-hot-toast';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -38,8 +37,7 @@ export default function NewSalePage() {
 
   return (
     <>
-      <Toaster position="bottom-center" />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <button

@@ -10,7 +10,8 @@ interface StatCardProps {
   color: string;
   trend: string;
   trendUp: boolean;
-  isCurrency?: boolean; // <-- NEW: default true
+  isCurrency?: boolean;
+  isLoss?: boolean;
 }
 
 export default function StatCard({ 
@@ -20,7 +21,8 @@ export default function StatCard({
   color, 
   trend, 
   trendUp,
-  isCurrency = true, // default to true so existing usage stays the same
+  isCurrency = true,
+  isLoss = false,
 }: StatCardProps) {
   const currencyContext = useCurrencySafe();
   const formatCurrency = currencyContext?.formatCurrency || ((amount: number) => `TZS ${amount.toLocaleString()}`);
@@ -30,8 +32,7 @@ export default function StatCard({
     ? formatCurrency(value) 
     : value.toLocaleString();
 
-  const isProfit = title === 'Net Profit';
-  const isNegative = isProfit && value < 0;
+  const isNegative = isLoss || (title === 'Net Profit' && value < 0);
 
   return (
     <div className="bg-white dark:!bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3 sm:p-4 hover:shadow-md transition cursor-pointer">

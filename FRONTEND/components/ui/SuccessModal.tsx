@@ -11,6 +11,8 @@ interface SuccessModalProps {
   message: string;
   buttonText?: string;
   onButtonClick?: () => void;
+  secondaryButtonText?: string;
+  onSecondaryButtonClick?: () => void;
 }
 
 export default function SuccessModal({
@@ -20,6 +22,8 @@ export default function SuccessModal({
   message,
   buttonText = 'Continue',
   onButtonClick,
+  secondaryButtonText,
+  onSecondaryButtonClick,
 }: SuccessModalProps) {
   useEffect(() => {
     if (isOpen) {
@@ -79,13 +83,23 @@ export default function SuccessModal({
           <p className="text-slate-500 dark:text-slate-400 text-sm">{message}</p>
         </div>
 
-        {/* Button */}
-        <button
-          onClick={onButtonClick || onClose}
-          className="mt-6 w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
-        >
-          {buttonText}
-        </button>
+        {/* Buttons */}
+        <div className="mt-6 flex flex-col gap-2">
+          <button
+            onClick={onButtonClick || onClose}
+            className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+          >
+            {buttonText}
+          </button>
+          {secondaryButtonText && (
+            <button
+              onClick={onSecondaryButtonClick || onClose}
+              className="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition font-medium"
+            >
+              {secondaryButtonText}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

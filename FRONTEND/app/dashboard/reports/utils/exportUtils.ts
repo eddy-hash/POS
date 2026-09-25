@@ -5,10 +5,20 @@ import autoTable from 'jspdf-autotable';
 const COMPANY_NAME = 'Smart POS';
 const COMPANY_TAGLINE = 'Point of Sale System';
 
-export async function exportPDF(dateRange: string, currency: string = 'TZS') {
+export interface ExportPDFOptions {
+  onSuccess?: () => void;
+  onError?: (message: string) => void;
+}
+
+export async function exportPDF(
+  dateRange: string,
+  currency: string = 'TZS',
+  options: ExportPDFOptions = {},
+) {
   const token = localStorage.getItem('access_token');
   if (!token) {
     showErrorToast('Session expired', 'Please log in again.');
+    options.onError?.('Session expired');
     return;
   }
 
@@ -17,7 +27,6 @@ export async function exportPDF(dateRange: string, currency: string = 'TZS') {
     const res = await fetch(`/api/reports/stats?range=${dateRange}&currency=${currency}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (res.status === 403 || res.status === 401) return;   // silently skip
     if (res.status === 403 || res.status === 401) return;   // silently skip
     if (!res.ok) throw new Error('Failed to fetch report data');
     const result = await res.json();
@@ -95,7 +104,11 @@ export async function exportPDF(dateRange: string, currency: string = 'TZS') {
       ['Total Sales', stats.totalSales ?? 0],
       ['Total Revenue', stats.formatted?.totalRevenue || `${stats.displayCurrency || currency} ${stats.totalRevenue?.toLocaleString() || 0}`],
       ['Total Expenses', stats.formatted?.totalExpenses || `${stats.displayCurrency || currency} ${stats.totalExpenses?.toLocaleString() || 0}`],
-      ['Net Profit', stats.formatted?.profit || `${stats.displayCurrency || currency} ${stats.profit?.toLocaleString() || 0}`],
+      [
+        (stats.profit ?? 0) >= 0 ? 'Net Profit' : 'Net Loss',
+        stats.formatted?.profit
+          || `${stats.displayCurrency || currency} ${Math.abs(stats.profit ?? 0).toLocaleString()}`,
+      ],
       ['Active Products', stats.totalProducts ?? 0],
       ['Total Purchases', stats.totalPurchases ?? 0],
     ];
@@ -262,10 +275,13 @@ export async function exportPDF(dateRange: string, currency: string = 'TZS') {
     const displayCurrency = stats.displayCurrency || currency || 'TZS';
     doc.save(`report_${dateRange}_${displayCurrency}_${new Date().toISOString().split('T')[0]}.pdf`);
     showSuccessToast('PDF exported successfully');
+    options.onSuccess?.();
+    options.onSuccess?.();
   } catch (error) {
     console.error('PDF export error:', error);
     const message = error instanceof Error ? error.message : 'Failed to generate PDF';
     showErrorToast(message, 'Please try again later.');
+    options.onError?.(message);
   }
 }
 
