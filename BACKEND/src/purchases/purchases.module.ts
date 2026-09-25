@@ -5,9 +5,13 @@ import { PurchasesService } from './purchases.service';
 import { PurchaseOrder } from './entities/purchase-order.entity';
 import { PurchaseItem } from './entities/purchase-item.entity';
 import { RawBodyMiddleware } from '../common/middleware/raw-body.middleware';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PurchaseOrder, PurchaseItem])],
+  imports: [
+    TypeOrmModule.forFeature([PurchaseOrder, PurchaseItem]),
+    NotificationsModule,
+  ],
   controllers: [PurchasesController],
   providers: [PurchasesService],
   exports: [PurchasesService],

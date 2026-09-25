@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Customer } from './entities/customer.entity';
 import { Sale } from '../sales/entities/sale.entity';
 import { CurrencyService } from '../currency/currency.service';
+import { NotificationTriggersService } from '../notifications/notification-triggers.service';
 
 
 @Injectable()
@@ -16,6 +17,7 @@ export class CustomersService {
     @InjectRepository(Sale)
     private saleRepository: Repository<Sale>,
     private currencyService: CurrencyService,
+    private notificationTriggers: NotificationTriggersService,
   ) {}
 
   async create(createCustomerDto: any, userId: number): Promise<Customer> {
@@ -27,6 +29,14 @@ export class CustomersService {
     customer.address = createCustomerDto.address || '';
 
     const savedCustomer = await this.customerRepository.save(customer);
+
+    // 🔔 Trigger notification
+    await this.notificationTriggers.onCustomerCreated(
+      userId,
+      savedCustomer.id,
+      savedCustomer.name,
+    );
+
     return savedCustomer;
   }
 

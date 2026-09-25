@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Expense } from './entities/expense.entity';
 import { CurrencyService } from '../currency/currency.service';
+import { NotificationTriggersService } from '../notifications/notification-triggers.service';
 
 @Injectable()
 export class ExpensesService {
@@ -12,6 +13,7 @@ export class ExpensesService {
     @InjectRepository(Expense)
     private expenseRepository: Repository<Expense>,
     private currencyService: CurrencyService,
+    private notificationTriggers: NotificationTriggersService,
   ) {}
 
   async create(createExpenseDto: any, userId: number): Promise<Expense> {
@@ -24,6 +26,15 @@ export class ExpensesService {
     expense.receiptPath = createExpenseDto.receiptPath || '';
 
     const savedExpense = await this.expenseRepository.save(expense);
+
+    // 🔔 Trigger notification
+    await this.notificationTriggers.onExpenseCreated(
+      userId,
+      savedExpense.id,
+      Number(savedExpense.amount) || 0,
+      savedExpense.category,
+    );
+
     return savedExpense;
   }
 

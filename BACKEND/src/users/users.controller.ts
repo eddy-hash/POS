@@ -16,9 +16,15 @@ export class UsersController {
       data: {
         id: user.id,
         name: user.name,
+        username: user.username ?? null,
         email: user.email,
         phone: user.phone || '',
         address: user.address || '',
+        isActive: user.isActive,              // ← frontend expects this
+        is_active: user.isActive,             // ← and snake_case for safety
+        role_id: user.role_id,
+        role: user.role?.name ?? null,
+        isAdmin: user.role_id === 1,
       },
     };
   }

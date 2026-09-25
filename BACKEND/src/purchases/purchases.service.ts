@@ -5,6 +5,7 @@ import { PurchaseOrder } from './entities/purchase-order.entity';
 import { PurchaseItem } from './entities/purchase-item.entity';
 import { CreatePurchaseDto } from './dto/create-purchase.dto';
 import { CurrencyService } from '../currency/currency.service';
+import { NotificationTriggersService } from '../notifications/notification-triggers.service';
 
 
 @Injectable()
@@ -17,6 +18,7 @@ export class PurchasesService {
     @InjectRepository(PurchaseItem)
     private purchaseItemRepository: Repository<PurchaseItem>,
     private currencyService: CurrencyService,
+    private notificationTriggers: NotificationTriggersService,
   ) {}
 
   async create(createPurchaseDto: CreatePurchaseDto, userId: number): Promise<PurchaseOrder> {
@@ -57,6 +59,14 @@ export class PurchasesService {
     });
 
     const savedOrder = await this.purchaseOrderRepository.save(purchaseOrder);
+
+    // 🔔 Trigger notification
+    await this.notificationTriggers.onPurchaseCreated(
+      userId,
+      savedOrder.id,
+      finalTotal,
+      supplier,
+    );
 
     for (const item of items) {
       const totalPrice = item.quantity * item.price;
